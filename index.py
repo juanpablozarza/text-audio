@@ -11,7 +11,7 @@ app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # Run on GPU with FP16
-whisper = WhisperModel(model_size, device=device, compute_type="int8")
+whisper = WhisperModel(model_size, device=device, compute_type="fp16")
 # or run on GPU with INT8
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
