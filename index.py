@@ -5,6 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
+import logging
 
 app = Flask(__name__)
 model_size = "large-v2"
@@ -30,6 +31,7 @@ model = BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(dev
 model.enable_cpu_offload()
 
 def transcribe_audio(file):
+    print('Starting transcription')
     text = ""
     segments, info = whisper.transcribe(file, beam_size=5)
     for segment in segments:
@@ -40,6 +42,7 @@ def transcribe_audio(file):
 
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
+    logging.log('Starting...')
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
     file = request.files["file"]
