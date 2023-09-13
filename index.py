@@ -42,7 +42,7 @@ def transcribe_audio(file):
 
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
-    logging.log('Starting...')
+    
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
     file = request.files["file"]
