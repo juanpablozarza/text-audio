@@ -27,7 +27,7 @@ STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
-processor = AutoProcessor.from_pretrained("suno/bark").to(device)
+processor = AutoProcessor.from_pretrained("suno/bark")
 model = BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(device)
 
 model.enable_cpu_offload()
