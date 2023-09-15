@@ -26,10 +26,12 @@ STREAM_NAME = "AudioEdGen"
 
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
-processor = AutoProcessor.from_pretrained("suno/bark")
+print('Running on', device)
+processor = AutoProcessor.from_pretrained("suno/bark").to(device)
 model = BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(device)
 
 model.enable_cpu_offload()
+model.eval()
 
 def transcribe_audio(file):
     print('Starting transcription')
@@ -62,7 +64,7 @@ def generateAudioFile():
     voice_preset = "v2/en_speaker_9"
     for sentence in sentences:
         # Tokenize the input
-        inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt")
+        inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
         audio_array = model.generate(
             **inputs,
         )
