@@ -66,7 +66,7 @@ def generateAudioFile():
         # Tokenize the input
         inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
         audio_array = model.generate(
-            **inputs,
+            input_ids=inputs,
         )
         audio_array = audio_array.cpu().numpy().squeeze()
         audio_bytes = audio_array.astype(np.float32).tobytes()
