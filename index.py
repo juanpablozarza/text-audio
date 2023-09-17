@@ -1,3 +1,5 @@
+import sys
+sys.path.append('./ffmpeg-6.0')
 from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
 from transformers import AutoProcessor, BarkModel
