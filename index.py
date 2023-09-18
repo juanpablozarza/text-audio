@@ -57,8 +57,8 @@ def upload_file():
     return jsonify({"transcribed_text": transcribed_text})
 
 
-@app.route("/generateAudioFile", methods=["POST"])
-def generateAudioFile():
+@app.route("/generateAudioFile/<uid>", methods=["POST"])
+def generateAudioFile(uid):
     reqData = request.json
     textData = reqData.get("textData")
     sentences = nltk.sent_tokenize(textData)
@@ -71,14 +71,24 @@ def generateAudioFile():
         )
         audio_array = audio_array.cpu().numpy().squeeze()
         audio_bytes = audio_array.astype(np.float32).tobytes()
-        put_to_kinesis(audio_bytes)
+        split_and_upload(audio_bytes,uid)
     return {"Status": "Completed"}
 
 
-def put_to_kinesis(audio_bytes):
+def upload_to_kinesis(bytes,partition_key):
+    kinesis = boto3.client("kinesis", region_name="us-west-1")
     kinesis.put_record(
-        StreamName=STREAM_NAME, Data=audio_bytes, PartitionKey="partitionKey"
+        StreamName=STREAM_NAME, Data=bytes, PartitionKey=partition_key
     )
+def split_and_upload(file_data, partition_key):
+    max_size = 1048576  # 1 MB in bytes
+    if len(file_data) <= max_size:
+        upload_to_kinesis(file_data, partition_key)
+    else:
+        mid_index = len(file_data) // 2
+        split_and_upload(file_data[:mid_index], partition_key)
+        split_and_upload(file_data[mid_index:], partition_key)
+
 
 
 port = 8080
