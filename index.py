@@ -1,4 +1,4 @@
-import json
+
 from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
 from transformers import AutoProcessor, BarkModel
@@ -77,12 +77,8 @@ def generateAudioFile(uid):
 
 def upload_to_kinesis(bytes,partition_key):
     kinesis = boto3.client("kinesis", region_name="us-west-1")
-    data_blob = json.dumps({
-    "filename": partition_key,
-    "data": bytes
-})
     kinesis.put_record(
-        StreamName=STREAM_NAME, Data=data_blob, PartitionKey=partition_key
+        StreamName=STREAM_NAME, Data=bytes, PartitionKey=partition_key
     )
 def split_and_upload(file_data, partition_key):
     max_size = 1048576  # 1 MB in bytes
