@@ -7,6 +7,7 @@ import numpy as np
 import boto3
 import torch
 import logging
+from scipy.io.wavfile import write as write_wav
 
 app = Flask(__name__)
 model_size = "large-v2"
@@ -71,7 +72,8 @@ def generateAudioFile(uid):
         )
         audio_array = audio_array.cpu().numpy().squeeze()
         audio_bytes = audio_array.astype(np.float16).tobytes()
-        split_and_upload(audio_bytes,uid)
+        split_and_upload(audio_array,uid)
+        write_wav("/path/to/audio.wav",44 , audio_array)
     return {"Status": "Completed"}
 
 
