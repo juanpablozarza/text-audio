@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
 from transformers import AutoProcessor, BarkModel
@@ -72,8 +71,9 @@ def generateAudioFile(uid):
         )
         audio_array = audio_array.cpu().numpy().squeeze()
         audio_bytes = audio_array.astype(np.float16).tobytes()
+        sample_rate = model.generation_config.sample_rate
         split_and_upload(audio_bytes,uid)
-        write_wav("./results/audio.wav",44 , audio_array)
+        write_wav("./results/audio.wav",sample_rate , audio_array)
     return {"Status": "Completed"}
 
 
