@@ -7,6 +7,11 @@ import boto3
 import torch
 import logging
 from scipy.io.wavfile import write as write_wav
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+from datasets import load_dataset
+import torch
+import soundfile as sf
+from datasets import load_dataset
 
 app = Flask(__name__)
 model_size = "large-v2"
@@ -28,11 +33,12 @@ STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
-processor = AutoProcessor.from_pretrained("suno/bark")
-model = BarkModel.from_pretrained("suno/bark", torch_dtype=torch.float16).to(device)
-
+# processor = AutoProcessor.from_pretrained("suno/bark")
+# model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
+model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
+vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 model.enable_cpu_offload()
-model.eval()
 
 def transcribe_audio(file):
     print('Starting transcription')
@@ -64,16 +70,21 @@ def generateAudioFile(uid):
     sentences = nltk.sent_tokenize(textData)
     voice_preset = "v2/en_speaker_9"
     for sentence in sentences:
+        inputs = processor(text=sentence, return_tensors="pt")
+        embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+        speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+        speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+        sf.write("./results/speech.wav", speech.numpy(), samplerate=16000)
         # Tokenize the input
-        inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
-        audio_array = model.generate(
-            input_ids=inputs,
-        )
-        audio_array = audio_array.cpu().numpy().squeeze()
-        audio_bytes = audio_array.astype(np.float16).tobytes()
-        sample_rate = model.generation_config.sample_rate
-        split_and_upload(audio_bytes,uid)
-        write_wav("./results/audio.wav",sample_rate , audio_array)
+        # inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
+        # audio_array = model.generate(
+        #     input_ids=inputs,
+        # )
+        # audio_array = audio_array.cpu().numpy().squeeze()
+        # audio_bytes = audio_array.astype(np.float16).tobytes()
+        # sample_rate = model.generation_config.sample_rate
+        # split_and_upload(audio_bytes,uid)
+        # write_wav("./results/audio.wav",sample_rate , audio_bytes)
     return {"Status": "Completed"}
 
 
