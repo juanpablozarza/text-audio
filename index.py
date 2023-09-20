@@ -38,7 +38,6 @@ print('Running on', device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
-model.enable_cpu_offload()
 
 def transcribe_audio(file):
     print('Starting transcription')
