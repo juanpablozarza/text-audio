@@ -1,17 +1,15 @@
 from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
-from transformers import AutoProcessor, BarkModel
 import nltk
 import numpy as np
 import boto3
 import torch
-import logging
-from scipy.io.wavfile import write as write_wav
 from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
 from datasets import load_dataset
-import torch
 import soundfile as sf
 from datasets import load_dataset
+import io
+from scipy.io.wavfile import write
 
 app = Flask(__name__)
 model_size = "large-v2"
@@ -73,7 +71,10 @@ def generateAudioFile(uid):
         embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
         speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
         speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-        sf.write("./results/speech.wav", speech.numpy(), samplerate=16000)
+        bytes_wav = bytes()
+        byte_io = io.BytesIO(bytes_wav)
+        write(byte_io, 16000, speech.numpy())
+        wav_bytes = byte_io.read()
         # Tokenize the input
         # inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
         # audio_array = model.generate(
@@ -82,8 +83,7 @@ def generateAudioFile(uid):
         # audio_array = audio_array.cpu().numpy().squeeze()
         # audio_bytes = audio_array.astype(np.float16).tobytes()
         # sample_rate = model.generation_config.sample_rate
-        # split_and_upload(audio_bytes,uid)
-        # write_wav("./results/audio.wav",sample_rate , audio_bytes)
+        split_and_upload(wav_bytes,uid)
     return {"Status": "Completed"}
 
 
