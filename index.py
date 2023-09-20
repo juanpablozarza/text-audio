@@ -72,8 +72,8 @@ def generateAudioFile(uid):
         )
         audio_array = audio_array.cpu().numpy().squeeze()
         audio_bytes = audio_array.astype(np.float16).tobytes()
-        split_and_upload(audio_array,uid)
-        write_wav("/path/to/audio.wav",44 , audio_array)
+        split_and_upload(audio_bytes,uid)
+        write_wav("./results/audio.wav",44 , audio_array)
     return {"Status": "Completed"}
 
 
