@@ -85,7 +85,7 @@ def generateAudioFile(uid):
         # sample_rate = model.generation_config.sample_rate
         split_and_upload(wav_bytes,uid)
         byte_io.seek(0)
-    return send_file(byte_io, as_attachment=True, attachment_filename='speech.wav', mimetype='audio/wav')
+    return send_file(byte_io, as_attachment=True, download_name='speech.wav', mimetype='audio/wav')
 
 
 def upload_to_kinesis(bytes,partition_key):
