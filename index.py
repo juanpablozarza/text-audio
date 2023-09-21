@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from faster_whisper import WhisperModel
 import nltk
 import numpy as np
@@ -84,7 +84,8 @@ def generateAudioFile(uid):
         # audio_bytes = audio_array.astype(np.float16).tobytes()
         # sample_rate = model.generation_config.sample_rate
         split_and_upload(wav_bytes,uid)
-    return {"Status": "Completed"}
+        byte_io.seek(0)
+    return send_file(byte_io, as_attachment=True, attachment_filename='speech.wav', mimetype='audio/wav')
 
 
 def upload_to_kinesis(bytes,partition_key):
