@@ -62,6 +62,7 @@ def upload_file():
 
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
+    print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
     sentences = nltk.sent_tokenize(textData)
