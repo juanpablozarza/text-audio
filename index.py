@@ -10,6 +10,7 @@ import soundfile as sf
 from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
+from datetime import datetime
 
 app = Flask(__name__)
 model_size = "large-v2"
@@ -67,6 +68,7 @@ def generateAudioFile(uid):
     textData = reqData.get("textData")
     sentences = nltk.sent_tokenize(textData)
     voice_preset = "v2/en_speaker_9"
+    audio_files = []
     for sentence in sentences:
         inputs = processor(text=sentence, return_tensors="pt")
         embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
@@ -76,24 +78,27 @@ def generateAudioFile(uid):
         byte_io = io.BytesIO(bytes_wav)
         write(byte_io, 16000, speech.numpy())
         wav_bytes = byte_io.read()
-        # Tokenize the input
-        # inputs = processor(sentence, voice_preset=voice_preset, return_tensors="pt").input_ids.to(device)
-        # audio_array = model.generate(
-        #     input_ids=inputs,
-        # )
-        # audio_array = audio_array.cpu().numpy().squeeze()
-        # audio_bytes = audio_array.astype(np.float16).tobytes()
-        # sample_rate = model.generation_config.sample_rate
-        split_and_upload(wav_bytes,uid)
+        audio_files.append(upload_to_s3(wav_bytes, uid))
         byte_io.seek(0)
-    return send_file(byte_io, as_attachment=True, download_name='speech.wav', mimetype='audio/wav')
+    return jsonify(audio_files)
 
 
-def upload_to_kinesis(bytes,partition_key):
-    kinesis = boto3.client("kinesis", region_name="us-west-1")
-    kinesis.put_record(
-        StreamName=STREAM_NAME, Data=bytes, PartitionKey=partition_key
-    )
+def upload_to_s3(bytes,partition_key):
+    # Format the datetime object to a string
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')    
+    object_name = f'{partition_key}/{formatted_datetime}.wav'
+    # Upload to S3
+    s3 = boto3.client('s3')
+    s3.put_object(Body=bytes, Bucket="audios-edgen", Key=object_name)
+    # Generate Pre-signed URL
+    presigned_url = s3.generate_presigned_url('get_object',
+                                              Params={'Bucket': "audios-edgen",
+                                                      'Key': object_name},
+                                              ExpiresIn=3600) # URL expires in 1 hour
+    print(presigned_url)
+    return presigned_url
+   
 def split_and_upload(file_data, partition_key):
     max_size = 1048576  # 1 MB in bytes
     if len(file_data) <= max_size:
