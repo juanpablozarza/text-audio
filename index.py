@@ -66,21 +66,16 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
-    sentences = nltk.sent_tokenize(textData)
-    voice_preset = "v2/en_speaker_9"
-    audio_files = []
-    for sentence in sentences:
-        inputs = processor(text=sentence, return_tensors="pt")
-        embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-        speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-        speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-        bytes_wav = bytes()
-        byte_io = io.BytesIO(bytes_wav)
-        write(byte_io, 16000, speech.numpy())
-        wav_bytes = byte_io.read()
-        audio_files.append(upload_to_s3(wav_bytes, uid))
-        byte_io.seek(0)
-    return jsonify(audio_files)
+    inputs = processor(text=textData, return_tensors="pt")
+    embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+    speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+    speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, 16000, speech.numpy())
+    wav_bytes = byte_io.read()
+    byte_io.seek(0)
+    return upload_to_s3(wav_bytes, uid)
 
 
 def upload_to_s3(bytes,partition_key):
