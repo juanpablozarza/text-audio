@@ -11,7 +11,7 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-
+from TTS.api import TTS
 app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,7 +28,8 @@ nltk.download("punkt")
 
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
-
+tts_model = 'tts_models/multilingual/multi-dataset/bark'
+tts = TTS(tts_model)
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
@@ -78,6 +79,19 @@ def generateAudioFile(uid):
     return upload_to_s3(wav_bytes, uid)
 
 
+@app.route("/TTSMultilingual/<uid>", methods=['POST'])
+def evaluatePronounciation(uid):
+     text = request.data['textData']
+     print(text,tts.languages, tts.speakers)
+     wav = tts.tts(text, speaker=tts.speakers[0], language=tts.languages[0])
+     bytes_wav = bytes()
+     byte_io = io.BytesIO(bytes_wav)
+     write(byte_io, 16000, wav.numpy())
+     wav_bytes = byte_io.read()
+     byte_io.seek(0)
+     return upload_to_s3(wav_bytes, uid)
+   
+
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
     current_datetime = datetime.now()
@@ -94,16 +108,6 @@ def upload_to_s3(bytes,partition_key):
     print(presigned_url)
     return presigned_url
    
-def split_and_upload(file_data, partition_key):
-    max_size = 1048576  # 1 MB in bytes
-    if len(file_data) <= max_size:
-        upload_to_kinesis(file_data, partition_key)
-    else:
-        mid_index = len(file_data) // 2
-        split_and_upload(file_data[:mid_index], partition_key)
-        split_and_upload(file_data[mid_index:], partition_key)
-
-
 
 port = 8080
 
