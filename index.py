@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan,AutoProcessor, AutoModel
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan,AutoProcessor, BarkModel
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -13,6 +13,7 @@ import io
 from scipy.io.wavfile import write
 from datetime import datetime
 import json
+
 mysp= __import__("my-voice-analysis")
 
 app = Flask(__name__)
@@ -35,11 +36,11 @@ STREAM_NAME = "AudioEdGen"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
 bark_preprocess = AutoProcessor.from_pretrained("suno/bark")
-bark = AutoModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+bark = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
-
+voice_preset = "v2/en_speaker_6"
 def transcribe_audio(file):
     print('Starting transcription')
     text = ""
@@ -109,11 +110,11 @@ def bark(uid):
      inputs = bark_preprocess(
      text=[text],
      return_tensors="pt",)
-     speech_values = bark.generate(**inputs, do_sample=True)
+     speech_values = bark.generate(**inputs,voice_preset= voice_preset, do_sample=True)
      print(speech_values)
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
-     write(byte_io, 16000, speech_values.numpy())
+     write(byte_io, 16000, speech_values.cpu().numpy().squeeze())
      wav_bytes = byte_io.read()
      byte_io.seek(0)
      return upload_to_s3(wav_bytes, uid)
