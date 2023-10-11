@@ -109,7 +109,7 @@ def bark(uid):
      text =data['textData']
      print(text)
      inputs = bark_preprocess(
-     text=[text],
+     text,
      return_tensors="pt",)
      speech_values = bark.generate(**inputs,voice_preset= voice_preset, do_sample=True)
      print(speech_values)
