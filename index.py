@@ -1,17 +1,20 @@
+import uuid
 from flask import Flask, request, jsonify, send_file
 from faster_whisper import WhisperModel
 import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan,AutoProcessor, AutoModel
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-from TTS.api import TTS
+from EasyTTS.inference.TTS import TTS
+import myspsolution as mysp
+
 app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,13 +31,12 @@ nltk.download("punkt")
 
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
-tts_model = 'tts_models/multilingual/multi-dataset/bark'
-tts = TTS(tts_model)
+tts = TTS(lang='es')
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
-# processor = AutoProcessor.from_pretrained("suno/bark")
-# model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+bark_preprocess = AutoProcessor.from_pretrained("suno/bark")
+bark = AutoModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
@@ -51,7 +53,6 @@ def transcribe_audio(file):
 
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
-    
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
     file = request.files["file"]
@@ -78,15 +79,39 @@ def generateAudioFile(uid):
     byte_io.seek(0)
     return upload_to_s3(wav_bytes, uid)
 
-
+@app.route("/audioEval/", methods=['POST'])
+def audioEval():
+    audio_file = request.files['audio']
+    random_uid = uuid.uuid4()
+    with open(f'uploads/{random_uid}.wav', 'wb') as f:
+     f.write(audio_file.content)
+    with open(f'uploads/{random_uid}.wav', 'rb') as file:
+        result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
+        print(result)
+        return result
+    
 @app.route("/TTSMultilingual/<uid>", methods=['POST'])
-def evaluatePronounciation(uid):
+def multilingualTTS(uid):
      text = request.data['textData']
      print(text,tts.languages, tts.speakers)
-     wav = tts.tts(text, speaker=tts.speakers[0], language=tts.languages[0])
+     wav = tts.predict(text, speaker=tts.speakers[0], language=tts.languages[0])
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
      write(byte_io, 16000, wav.numpy())
+     wav_bytes = byte_io.read()
+     byte_io.seek(0)
+     return upload_to_s3(wav_bytes, uid)
+   
+@app.route("/bark/<uid>", methods=['POST'])
+def bark(uid):
+     text = request.data['textData']
+     inputs = bark_preprocess(
+     text=[text],
+     return_tensors="pt",)
+     speech_values = tts.generate(**inputs, do_sample=True)
+     bytes_wav = bytes()
+     byte_io = io.BytesIO(bytes_wav)
+     write(byte_io, 16000, speech_values.numpy())
      wav_bytes = byte_io.read()
      byte_io.seek(0)
      return upload_to_s3(wav_bytes, uid)
