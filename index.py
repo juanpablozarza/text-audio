@@ -120,6 +120,7 @@ def barkTTS(uid):
      write(byte_io, sample_rate, speech_values.cpu().numpy().squeeze())
      wav_bytes = byte_io.read()
      byte_io.seek(0)
+     write("bark_out.wav", rate=sample_rate, data=speech_values.cpu().numpy().squeeze())
      return upload_to_s3(wav_bytes, uid)
    
 
