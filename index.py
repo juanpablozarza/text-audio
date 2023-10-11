@@ -109,6 +109,7 @@ def barkTTS(uid):
      print(data)
      text =data['textData']
      sample_rate = bark.generation_config.sample_rate
+     print("Sample rate",sample_rate)
      inputs = bark_preprocess(
      text,
      return_tensors="pt",).to(device)
