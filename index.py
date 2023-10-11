@@ -110,7 +110,7 @@ def barkTTS(uid):
      inputs = bark_preprocess(
      text,
      return_tensors="pt",).to(device)
-     speech_values = bark.generate(**inputs,voice_preset= voice_preset, do_sample=True)
+     speech_values = bark.generate(**inputs, do_sample=True)
      print(speech_values)
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
