@@ -90,17 +90,17 @@ def audioEval():
         print(result)
         return result
     
-@app.route("/TTSMultilingual/<uid>", methods=['POST'])
-def multilingualTTS(uid):
-     text = request.data['textData']
-     print(text,tts.languages, tts.speakers)
-     wav = tts.predict(text, speaker=tts.speakers[0], language=tts.languages[0])
-     bytes_wav = bytes()
-     byte_io = io.BytesIO(bytes_wav)
-     write(byte_io, 16000, wav.numpy())
-     wav_bytes = byte_io.read()
-     byte_io.seek(0)
-     return upload_to_s3(wav_bytes, uid)
+# @app.route("/TTSMultilingual/<uid>", methods=['POST'])
+# def multilingualTTS(uid):
+#      text = request.data['textData']
+#      print(text,tts.languages, tts.speakers)
+#      wav = tts.predict(text, speaker=tts.speakers[0], language=tts.languages[0])
+#      bytes_wav = bytes()
+#      byte_io = io.BytesIO(bytes_wav)
+#      write(byte_io, 16000, wav.numpy())
+#      wav_bytes = byte_io.read()
+#      byte_io.seek(0)
+#      return upload_to_s3(wav_bytes, uid)
    
 @app.route("/bark/<uid>", methods=['POST'])
 def bark(uid):
@@ -109,6 +109,7 @@ def bark(uid):
      text=[text],
      return_tensors="pt",)
      speech_values = tts.generate(**inputs, do_sample=True)
+     print(speech_values)
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
      write(byte_io, 16000, speech_values.numpy())
