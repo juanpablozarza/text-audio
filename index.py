@@ -12,7 +12,7 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-import myspsolution as mysp
+mysp= __import__("my-voice-analysis")
 
 app = Flask(__name__)
 model_size = "large-v2"
