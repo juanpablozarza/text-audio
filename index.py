@@ -107,7 +107,7 @@ def bark(uid):
      data = json.loads(request.data)
      print(data)
      text =data['textData']
-     print(text)
+     print(bark_preprocess)
      inputs = bark_preprocess(
      text,
      return_tensors="pt",)
