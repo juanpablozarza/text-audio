@@ -103,11 +103,10 @@ def audioEval():
 #      return upload_to_s3(wav_bytes, uid)
    
 @app.route("/bark/<uid>", methods=['POST'])
-def bark(uid):
+def barkTTS(uid):
      data = json.loads(request.data)
      print(data)
      text =data['textData']
-     print(bark_preprocess)
      inputs = bark_preprocess(
      text,
      return_tensors="pt",)
