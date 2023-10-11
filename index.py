@@ -12,7 +12,6 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-from EasyTTS.inference.TTS import TTS
 import myspsolution as mysp
 
 app = Flask(__name__)
@@ -31,7 +30,6 @@ nltk.download("punkt")
 
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
-tts = TTS(lang='es')
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
@@ -108,7 +106,7 @@ def bark(uid):
      inputs = bark_preprocess(
      text=[text],
      return_tensors="pt",)
-     speech_values = tts.generate(**inputs, do_sample=True)
+     speech_values = bark.generate(**inputs, do_sample=True)
      print(speech_values)
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
