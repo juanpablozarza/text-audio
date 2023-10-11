@@ -105,8 +105,9 @@ def audioEval():
 @app.route("/bark/<uid>", methods=['POST'])
 def bark(uid):
      data = json.loads(request.data)
-     
+     print(data)
      text =data['textData']
+     print(text)
      inputs = bark_preprocess(
      text=[text],
      return_tensors="pt",)
