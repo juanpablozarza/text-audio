@@ -12,6 +12,7 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
+import json
 mysp= __import__("my-voice-analysis")
 
 app = Flask(__name__)
@@ -102,7 +103,8 @@ def audioEval():
    
 @app.route("/bark/<uid>", methods=['POST'])
 def bark(uid):
-     data = request.data
+     data = json.loads(request.data)
+     
      text =data['textData']
      inputs = bark_preprocess(
      text=[text],
