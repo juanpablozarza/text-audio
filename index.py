@@ -14,6 +14,7 @@ from scipy.io.wavfile import write
 from datetime import datetime
 import json
 
+
 mysp= __import__("my-voice-analysis")
 
 app = Flask(__name__)
@@ -107,6 +108,7 @@ def barkTTS(uid):
      data = json.loads(request.data)
      print(data)
      text =data['textData']
+     sample_rate = bark.generation_config.sample_rate
      inputs = bark_preprocess(
      text,
      return_tensors="pt",).to(device)
@@ -114,7 +116,7 @@ def barkTTS(uid):
      print(speech_values)
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
-     write(byte_io, 16000, speech_values.cpu().numpy().squeeze())
+     write(byte_io, sample_rate, speech_values.cpu().numpy().squeeze())
      wav_bytes = byte_io.read()
      byte_io.seek(0)
      return upload_to_s3(wav_bytes, uid)
