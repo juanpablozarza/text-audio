@@ -14,14 +14,14 @@ from scipy.io.wavfile import write
 from datetime import datetime
 import json
 import sys
-sys.path.append('/home/ubuntu/text-audio/TTS-MultiLingual/TTS/')
-print(sys.path)
+# sys.path.append('/home/ubuntu/text-audio/TTS-MultiLingual/TTS/')
+# print(sys.path)
 
-from api import CS_API
+# from api import CS_API
 
 
 mysp= __import__("my-voice-analysis")
-tts = CS_API()
+# tts = CS_API()
 app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -97,11 +97,11 @@ def audioEval():
         print(result)
         return result
     
-@app.route("/TTSMultilingual/<uid>", methods=['POST'])
-def multilingualTTS(uid):
-     text = request.data['textData']
-     print(text,tts.languages, tts.speakers)
-     tts.tts_to_file(text, speaker=tts.speakers[0], language='spa', file_path='output.wav')
+# @app.route("/TTSMultilingual/<uid>", methods=['POST'])
+# def multilingualTTS(uid):
+#      text = request.data['textData']
+#      print(text,tts.languages, tts.speakers)
+#      tts.tts_to_file(text, speaker=tts.speakers[0], language='spa', file_path='output.wav')
     #  wav = tts.predict(text, speaker=tts.speakers[0], language='spa')
     #  bytes_wav = bytes()
     #  byte_io = io.BytesIO(bytes_wav)
