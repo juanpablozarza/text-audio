@@ -15,7 +15,7 @@ from datetime import datetime
 import json
 import sys
 sys.path.append('/TTS-MultiLingual/TTS/api.py')
-from my_module import CS_API
+from api import CS_API
 
 
 mysp= __import__("my-voice-analysis")
