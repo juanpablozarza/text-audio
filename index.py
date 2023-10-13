@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan,AutoProcessor, BarkModel
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -13,7 +13,7 @@ import io
 from scipy.io.wavfile import write
 from datetime import datetime
 import json
-
+from TTS.api import TTS
 
 mysp= __import__("my-voice-analysis")
 
@@ -21,6 +21,7 @@ app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
+tts = TTS(model_name="tts_models/multilingual/multi-dataset/your_tts", progress_bar=False, gpu=True)
 # Run on GPU with FP16
 whisper = WhisperModel(model_size, device=device, compute_type="float16")
 # or run on GPU with INT8
@@ -36,8 +37,8 @@ STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
-bark_preprocess = AutoProcessor.from_pretrained("suno/bark")
-bark = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+# bark_preprocess = AutoProcessor.from_pretrained("suno/bark")
+# bark = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
@@ -91,37 +92,38 @@ def audioEval():
         print(result)
         return result
     
-# @app.route("/TTSMultilingual/<uid>", methods=['POST'])
-# def multilingualTTS(uid):
-#      text = request.data['textData']
-#      print(text,tts.languages, tts.speakers)
-#      wav = tts.predict(text, speaker=tts.speakers[0], language=tts.languages[0])
-#      bytes_wav = bytes()
-#      byte_io = io.BytesIO(bytes_wav)
-#      write(byte_io, 16000, wav.numpy())
-#      wav_bytes = byte_io.read()
-#      byte_io.seek(0)
-#      return upload_to_s3(wav_bytes, uid)
-   
-@app.route("/bark/<uid>", methods=['POST'])
-def barkTTS(uid):
-     data = json.loads(request.data)
-     print(data)
-     text =data['textData']
-     sample_rate = bark.generation_config.sample_rate
-     print("Sample rate",sample_rate)
-     inputs = bark_preprocess(
-     text,
-     return_tensors="pt",).to(device)
-     speech_values = bark.generate(**inputs, do_sample=True)
-     print(speech_values)
+@app.route("/TTSMultilingual/<uid>", methods=['POST'])
+def multilingualTTS(uid):
+     text = request.data['textData']
+     print(text,tts.languages, tts.speakers)
+     tts.tts_to_file(text, speaker=tts.speakers[0], language='spa', file_path='output.wav')
+     wav = tts.predict(text, speaker=tts.speakers[0], language='spa')
      bytes_wav = bytes()
      byte_io = io.BytesIO(bytes_wav)
-     write(byte_io, sample_rate, speech_values.cpu().numpy().squeeze())
+     write(byte_io, 16000, wav.numpy())
      wav_bytes = byte_io.read()
      byte_io.seek(0)
-     write("bark_out.wav", rate=sample_rate, data=speech_values.cpu().numpy().squeeze())
      return upload_to_s3(wav_bytes, uid)
+   
+# @app.route("/bark/<uid>", methods=['POST'])
+# def barkTTS(uid):
+#      data = json.loads(request.data)
+#      print(data)
+#      text =data['textData']
+#      sample_rate = bark.generation_config.sample_rate
+#      print("Sample rate",sample_rate)
+#      inputs = bark_preprocess(
+#      text,
+#      return_tensors="pt",).to(device)
+#      speech_values = bark.generate(**inputs, do_sample=True)
+#      print(speech_values)
+#      bytes_wav = bytes()
+#      byte_io = io.BytesIO(bytes_wav)
+#      write(byte_io, sample_rate, speech_values.cpu().numpy().squeeze())
+#      wav_bytes = byte_io.read()
+#      byte_io.seek(0)
+#      write("bark_out.wav", rate=sample_rate, data=speech_values.cpu().numpy().squeeze())
+#      return upload_to_s3(wav_bytes, uid)
    
 
 def upload_to_s3(bytes,partition_key):
