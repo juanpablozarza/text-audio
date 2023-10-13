@@ -14,7 +14,9 @@ from scipy.io.wavfile import write
 from datetime import datetime
 import json
 import sys
-sys.path.append('/TTS-MultiLingual/TTS/api.py')
+sys.path.append('./TTS-MultiLingual/TTS/api.py')
+print(sys.path)
+
 from api import CS_API
 
 
