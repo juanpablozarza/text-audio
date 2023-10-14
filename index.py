@@ -48,6 +48,7 @@ processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
+
 def transcribe_audio(file):
     print('Starting transcription')
     text = ""
@@ -60,6 +61,7 @@ def transcribe_audio(file):
 
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
+    print(request.files)
     if "file" not in request.files:
         return jsonify({"error": "No file part"})
     file = request.files["file"]
