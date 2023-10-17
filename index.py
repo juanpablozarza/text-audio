@@ -86,7 +86,7 @@ def generateAudioFile(uid):
     textData = reqData.get("textData")
     lang = textClassifier(textData)
     sampRate = 0
-    if lang == 'es':
+    if lang == 'es-ES':
         speech = spanishTTS(textData)
         sampRate = spaTTS.config.sampling_rate
     else:        
