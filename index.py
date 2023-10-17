@@ -14,8 +14,9 @@ from scipy.io.wavfile import write
 from datetime import datetime
 import json
 import sys
+from bark import SAMPLE_RATE, generate_audio, preload_models
 
-
+preload_models()
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
@@ -32,8 +33,7 @@ whisper = WhisperModel(model_size, device=device, compute_type="float16")
 
 
 # Text to speech model for spanish
-spaTTS = VitsModel.from_pretrained("facebook/mms-tts-spa")
-spaTTSTokenizer = AutoTokenizer.from_pretrained("facebook/mms-tts-spa")
+\
 
 # Text classifier 
 textClassfierModelName = 'qanastek/51-languages-classifier'
@@ -88,7 +88,7 @@ def generateAudioFile(uid):
     sampRate = 0
     if lang == 'es-ES':
         speech = spanishTTS(textData)
-        sampRate = spaTTS.config.sampling_rate
+        sampRate = SAMPLE_RATE
     else:        
       inputs = processor(text=textData, return_tensors="pt")
       embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
@@ -115,15 +115,9 @@ def audioEval():
     
 
 def spanishTTS(textData):
-    inputs = spaTTSTokenizer(textData, return_tensors="pt")
-    with torch.no_grad():
-        output = spaTTS(**inputs).waveform
-    print(output)
-    numpy_output = output.numpy().squeeze()
-    if numpy_output.dtype != np.int16:
-        numpy_output = (numpy_output * 32767).astype(np.int16)
-    write("results/output.wav", rate=spaTTS.config.sampling_rate, data=numpy_output)
-    return numpy_output
+    audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
+    write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
+    return audio_array
 
 def textClassifier(textData):
     output = text_classifier(textData)
