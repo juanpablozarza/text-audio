@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -14,10 +14,6 @@ from scipy.io.wavfile import write
 from datetime import datetime
 import json
 import sys
-# sys.path.append('/home/ubuntu/text-audio/TTS-MultiLingual/TTS/')
-# print(sys.path)
-
-# from api import CS_API
 
 
 mysp= __import__("my-voice-analysis")
@@ -33,6 +29,17 @@ whisper = WhisperModel(model_size, device=device, compute_type="float16")
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
 # model = WhisperModel(model_size, device="cpu", compute_type="int8")
+
+
+# Text to speech model for spanish
+spaTTS = VitsModel.from_pretrained("facebook/mms-tts-spa")
+spaTTSTokenizer = AutoTokenizer.from_pretrained("facebook/mms-tts-spa")
+
+# Text classifier 
+textClassfierModelName = 'qanastek/51-languages-classifier'
+textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
+textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
+text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
 
 # Download NLTK Data
 nltk.download("punkt")
@@ -77,13 +84,20 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
-    inputs = processor(text=textData, return_tensors="pt")
-    embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-    speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-    speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+    lang = textClassifier(textData)
+    sampRate = 0
+    if lang == 'es':
+        speech = spanishTTS(textData)
+        sampRate = spaTTS.config.sampling_rate
+    else:        
+      inputs = processor(text=textData, return_tensors="pt")
+      embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+      speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+      speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+      sampRate = 16000
     bytes_wav = bytes()
     byte_io = io.BytesIO(bytes_wav)
-    write(byte_io, 16000, speech.numpy())
+    write(byte_io, sampRate, speech.numpy())
     wav_bytes = byte_io.read()
     byte_io.seek(0)
     return upload_to_s3(wav_bytes, uid)
@@ -99,39 +113,17 @@ def audioEval():
         print(result)
         return result
     
-# @app.route("/TTSMultilingual/<uid>", methods=['POST'])
-# def multilingualTTS(uid):
-#      text = request.data['textData']
-#      print(text,tts.languages, tts.speakers)
-#      tts.tts_to_file(text, speaker=tts.speakers[0], language='spa', file_path='output.wav')
-    #  wav = tts.predict(text, speaker=tts.speakers[0], language='spa')
-    #  bytes_wav = bytes()
-    #  byte_io = io.BytesIO(bytes_wav)
-    #  write(byte_io, 16000, wav.numpy())
-    #  wav_bytes = byte_io.read()
-    #  byte_io.seek(0)
-    #  return upload_to_s3(wav_bytes, uid)
-   
-# @app.route("/bark/<uid>", methods=['POST'])
-# def barkTTS(uid):
-#      data = json.loads(request.data)
-#      print(data)
-#      text =data['textData']
-#      sample_rate = bark.generation_config.sample_rate
-#      print("Sample rate",sample_rate)
-#      inputs = bark_preprocess(
-#      text,
-#      return_tensors="pt",).to(device)
-#      speech_values = bark.generate(**inputs, do_sample=True)
-#      print(speech_values)
-#      bytes_wav = bytes()
-#      byte_io = io.BytesIO(bytes_wav)
-#      write(byte_io, sample_rate, speech_values.cpu().numpy().squeeze())
-#      wav_bytes = byte_io.read()
-#      byte_io.seek(0)
-#      write("bark_out.wav", rate=sample_rate, data=speech_values.cpu().numpy().squeeze())
-#      return upload_to_s3(wav_bytes, uid)
-   
+def spanishTTS(textData):
+    inputs = spaTTSTokenizer(textData, return_tensors="pt")
+    with torch.no_grad():
+      output = spaTTS(**inputs).waveform
+    write("results/output.wav", rate=spaTTS.config.sampling_rate, data=output)
+    return output
+
+def textClassifier(textData):
+    output = text_classifier(textData)
+    print(output[0]['label'])
+    return output[0]['label']
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
