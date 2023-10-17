@@ -117,7 +117,7 @@ def audioEval():
 def spanishTTS(textData):
     inputs = spaTTSTokenizer(textData, return_tensors="pt")
     with torch.no_grad():
-        output = spaTTS(**inputs).waveform()
+        output = spaTTS(**inputs).waveform
     print(output)
     numpy_output = output.numpy().squeeze()
     if numpy_output.dtype != np.int16:
