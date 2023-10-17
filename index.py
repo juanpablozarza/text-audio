@@ -117,8 +117,12 @@ def spanishTTS(textData):
     inputs = spaTTSTokenizer(textData, return_tensors="pt")
     with torch.no_grad():
       output = spaTTS(**inputs).waveform
-    print(output)  
-    write("results/output.wav", rate=spaTTS.config.sampling_rate, data=output.numpy())
+   
+    output_np = output.numpy()
+    print(output_np)
+    audio_data = np.int16(output_np/np.max(np.abs(output_np)) * 32767)
+  
+    write("results/output.wav", rate=spaTTS.config.sampling_rate, data=audio_data)
     return output
 
 def textClassifier(textData):
