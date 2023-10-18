@@ -12,8 +12,7 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-import json
-import sys
+
 from bark import SAMPLE_RATE, generate_audio, preload_models
 
 preload_models()
@@ -94,10 +93,11 @@ def generateAudioFile(uid):
       embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
       speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+      speech =speech.numpy()
       sampRate = 16000
     bytes_wav = bytes()
     byte_io = io.BytesIO(bytes_wav)
-    write(byte_io, sampRate, speech.numpy())
+    write(byte_io, sampRate, speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
     return upload_to_s3(wav_bytes, uid)
