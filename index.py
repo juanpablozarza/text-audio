@@ -115,8 +115,7 @@ def audioEval():
 
 
 def spanishTTS(textData):
-    model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
-    audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8", model=model)
+    audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
 
