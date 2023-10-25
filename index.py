@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModel , AutoProcessor, TextClassificationPipeline, BarkModel
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModel , AutoProcessor, TextClassificationPipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -48,8 +48,6 @@ STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
-bark_preprocess = AutoProcessor.from_pretrained("suno/bark-small")
-bark = AutoModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
@@ -117,19 +115,6 @@ def audioEval():
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
-    return audio_array
-
-@app.route('/TTSspa', methods=["POST"])
-def spanishTTSTest():
-    reqData = request.json
-    textData = reqData.get("textData")
-    inputs = bark_preprocess(
-    text=[textData],
-    return_tensors="pt",
-    voice_preset="v2/es_speaker_8" ).to(device)
-    speech_values = bark.generate(**inputs, do_sample=True)
-    audio_array = speech_values.cpu().numpy().squeeze()
-    write("results/output_test.wav", rate=bark.generation_config.sample_rate, data=audio_array)
     return audio_array
 
 def textClassifier(textData):
