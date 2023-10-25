@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModel , AutoProcessor, TextClassificationPipeline
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModel , AutoProcessor, TextClassificationPipeline, BarkModel
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -112,10 +112,11 @@ def audioEval():
         result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
         print(result)
         return result
-    
+
 
 def spanishTTS(textData):
-    audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
+    model = BarkModel.from_pretrained("suno/bark-small", torch_dtype=torch.float16).to(device)
+    audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8", model=model)
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
 
