@@ -126,7 +126,7 @@ def spanishTTSTest():
     inputs = bark_preprocess(
     text=[textData],
     return_tensors="pt",
-    voice_preset="v2/es_speaker_8" )
+    voice_preset="v2/es_speaker_8" ).to(device)
     speech_values = bark.generate(**inputs, do_sample=True)
     audio_array = speech_values.cpu().numpy().squeeze()
     write("results/output_test.wav", rate=bark.generation_config.sample_rate, data=audio_array)
