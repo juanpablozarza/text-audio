@@ -12,7 +12,8 @@ from datasets import load_dataset
 import io
 from scipy.io.wavfile import write
 from datetime import datetime
-
+import sys
+sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
 
 preload_models()
