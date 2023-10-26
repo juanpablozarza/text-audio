@@ -15,7 +15,6 @@ from datetime import datetime
 import sys
 sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
-
 preload_models()
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -23,27 +22,21 @@ app = Flask(__name__)
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
-
 # Run on GPU with FP16
 whisper = WhisperModel(model_size, device=device, compute_type="float16")
 # or run on GPU with INT8
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
 # model = WhisperModel(model_size, device="cpu", compute_type="int8")
-
-
 # Text to speech model for spanish
 \
-
 # Text classifier 
 textClassfierModelName = 'qanastek/51-languages-classifier'
 textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
 textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
 text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
-
 # Download NLTK Data
 nltk.download("punkt")
-
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
@@ -53,7 +46,6 @@ processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
-
 def transcribe_audio(file):
     print('Starting transcription')
     text = ""
@@ -62,8 +54,6 @@ def transcribe_audio(file):
         text += segment.text
     print(text)
     return text
-
-
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
     print(request.files)
@@ -73,40 +63,32 @@ def upload_file():
     if file.filename == "":
         return jsonify({"error": "No selected file"})
     transcribed_text = transcribe_audio(file)
-
     return jsonify({"transcribed_text": transcribed_text})
-
-
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
     lang = textClassifier(textData)
-    lang_dict = segregate_texts_by_language(textData)
     sampRate = 0
-    urls = []
-    for lang, text in lang_dict.values():
-     print(lang, text)
-     if lang == 'es-ES':
-        speech = spanishTTS(text)
+    if lang == 'es-ES':
+        speech = spanishTTS(textData)
         sampRate = SAMPLE_RATE
-     else:        
-      inputs = processor(text=text, return_tensors="pt")
+    else:        
+      inputs = processor(text=textData, return_tensors="pt")
       embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
       speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
       speech =speech.numpy()
       sampRate = 16000
-     bytes_wav = bytes()
-     byte_io = io.BytesIO(bytes_wav)
-     write(byte_io, sampRate, speech)
-     wav_bytes = byte_io.read()
-     byte_io.seek(0)
-     urls.append(upload_to_s3(wav_bytes, uid))
-    return urls
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, sampRate, speech)
+    wav_bytes = byte_io.read()
+    byte_io.seek(0)
+    return upload_to_s3(wav_bytes, uid)
 
-@app.route("/audioEval/", methods=['POST'])
+@app.route("/audioEval", methods=['POST'])
 def audioEval():
     audio_file = request.files['audio']
     random_uid = uuid.uuid4()
@@ -117,17 +99,24 @@ def audioEval():
         print(result)
         return result
 
-
+def upload_to_s3(bytes,partition_key):
+  
+    audio_file = request.files['audio']
+    random_uid = uuid.uuid4()
+    with open(f'uploads/{random_uid}.wav', 'wb') as f:
+     f.write(audio_file.content)
+    with open(f'uploads/{random_uid}.wav', 'rb') as file:
+        result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
+        print(result)
+        return result
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
-
 def textClassifier(textData):
     output = text_classifier(textData)
     print(output[0]['label'])
     return output[0]['label']
-
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
     current_datetime = datetime.now()
@@ -143,39 +132,3 @@ def upload_to_s3(bytes,partition_key):
                                               ExpiresIn=7200) # URL expires in 1 hour
     print(presigned_url)
     return presigned_url
-   
-
-def segregate_texts_by_language(texts):
-    language_dict = {}
-    current_language = None
-    current_text = ""
-    key_counter = 1  # Counter to ensure unique keys for each language change
-    
-    for text in texts:
-        words = text.split()
-        for word in words:
-            language = textClassifier(word)
-            if current_language is None:
-                current_language = language  # Set the language for the first word
-            if language == current_language:
-                current_text += word + " "  # Continue appending words of the same language
-            else:
-                # Language change detected, store the current text and reset variables
-                key = f"{current_language}{key_counter}"
-                language_dict[key] = current_text.rstrip()
-                current_text = word + " "
-                current_language = language
-                key_counter += 1
-    
-    # Store the last chunk of text
-    key = f"{current_language}{key_counter}"
-    language_dict[key] = current_text.rstrip()
-    
-    return language_dict
-
-
-port = 8081
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=port)
-    print("App running on port", port)
