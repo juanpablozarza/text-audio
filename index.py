@@ -83,23 +83,28 @@ def generateAudioFile(uid):
     reqData = request.json
     textData = reqData.get("textData")
     lang = textClassifier(textData)
+    lang_dict = segregate_texts_by_language(textData)
     sampRate = 0
-    if lang == 'es-ES':
-        speech = spanishTTS(textData)
+    urls = []
+    for lang, text in lang_dict.values():
+     print(lang, text)
+     if lang == 'es-ES':
+        speech = spanishTTS(text)
         sampRate = SAMPLE_RATE
-    else:        
-      inputs = processor(text=textData, return_tensors="pt")
+     else:        
+      inputs = processor(text=text, return_tensors="pt")
       embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
       speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
       speech =speech.numpy()
       sampRate = 16000
-    bytes_wav = bytes()
-    byte_io = io.BytesIO(bytes_wav)
-    write(byte_io, sampRate, speech)
-    wav_bytes = byte_io.read()
-    byte_io.seek(0)
-    return upload_to_s3(wav_bytes, uid)
+     bytes_wav = bytes()
+     byte_io = io.BytesIO(bytes_wav)
+     write(byte_io, sampRate, speech)
+     wav_bytes = byte_io.read()
+     byte_io.seek(0)
+     urls.append(upload_to_s3(wav_bytes, uid))
+    return urls
 
 @app.route("/audioEval/", methods=['POST'])
 def audioEval():
@@ -139,6 +144,35 @@ def upload_to_s3(bytes,partition_key):
     print(presigned_url)
     return presigned_url
    
+
+def segregate_texts_by_language(texts):
+    language_dict = {}
+    current_language = None
+    current_text = ""
+    key_counter = 1  # Counter to ensure unique keys for each language change
+    
+    for text in texts:
+        words = text.split()
+        for word in words:
+            language = textClassifier(word)
+            if current_language is None:
+                current_language = language  # Set the language for the first word
+            if language == current_language:
+                current_text += word + " "  # Continue appending words of the same language
+            else:
+                # Language change detected, store the current text and reset variables
+                key = f"{current_language}{key_counter}"
+                language_dict[key] = current_text.rstrip()
+                current_text = word + " "
+                current_language = language
+                key_counter += 1
+    
+    # Store the last chunk of text
+    key = f"{current_language}{key_counter}"
+    language_dict[key] = current_text.rstrip()
+    
+    return language_dict
+
 
 port = 8080
 
