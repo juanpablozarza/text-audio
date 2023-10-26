@@ -117,6 +117,7 @@ def textClassifier(textData):
     output = text_classifier(textData)
     print(output[0]['label'])
     return output[0]['label']
+
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
     current_datetime = datetime.now()
@@ -132,3 +133,8 @@ def upload_to_s3(bytes,partition_key):
                                               ExpiresIn=7200) # URL expires in 1 hour
     print(presigned_url)
     return presigned_url
+
+port =8080
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=port)
+    print("App running on port", port)
