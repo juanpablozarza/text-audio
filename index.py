@@ -174,7 +174,7 @@ def segregate_texts_by_language(texts):
     return language_dict
 
 
-port = 8080
+port = 8081
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
