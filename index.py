@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModel , AutoProcessor, TextClassificationPipeline
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM , AutoProcessor, TextClassificationPipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -15,6 +15,7 @@ from datetime import datetime
 import sys
 sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
+from peft import PeftModel, PeftConfig
 preload_models()
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -46,6 +47,15 @@ processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
+
+# Mini model used for lang separation
+peft_model_id = "Juanpablozarza292/LaMini-Flan-T5-finetune-lang"
+config = PeftConfig.from_pretrained(peft_model_id)
+lang_sep_model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
+lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
+# Load the Lora model
+lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
+
 def transcribe_audio(file):
     print('Starting transcription')
     text = ""
@@ -114,6 +124,10 @@ def spanishTTS(textData):
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
 def textClassifier(textData):
+    inputs = lang_sep_tokenizer(f"{textData} ->:", return_tensors='pt')
+    predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
+    pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
+    print(pred)
     output = text_classifier(textData)
     print(output[0]['label'])
     return output[0]['label']
