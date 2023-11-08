@@ -125,7 +125,7 @@ def spanishTTS(textData):
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
 def textClassifier(textData):
-    inputs = lang_sep_tokenizer(f"Make a list of the code switch ex. 'Hello I am a estudiante en Mexico.' -> ['Hello I am a', 'estudiante en Mexico']: \n {textData} ->:", return_tensors='pt')
+    inputs = lang_sep_tokenizer(f"Make a list of the differente chunks of languages. Example. 'Hello I am a estudiante en Mexico.' -> ['Hello I am a', 'estudiante en Mexico'] \n {textData} ->:", return_tensors='pt')
     predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
     print(pred)
