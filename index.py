@@ -5,7 +5,7 @@ import nltk
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM , AutoProcessor, TextClassificationPipeline
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM , AutoProcessor, TextClassificationPipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -52,7 +52,7 @@ voice_preset = "v2/en_speaker_6"
 peft_model_id = "Juanpablozarza292/LaMini-Flan-T5-finetune-lang"
 config = PeftConfig.from_pretrained(peft_model_id)
 print(config)
-lang_sep_model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
+lang_sep_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
 lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 # Load the Lora model
 lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
