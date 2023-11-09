@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
 from peft import PeftModel, PeftConfig
-preload_models()
+# preload_models()
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
