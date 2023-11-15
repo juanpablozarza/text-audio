@@ -31,7 +31,6 @@ whisper = WhisperModel(model_size, device=device, compute_type="float16")
 # or run on CPU with INT8
 # model = WhisperModel(model_size, device="cpu", compute_type="int8")
 # Text to speech model for spanish
-\
 # Text classifier 
 textClassfierModelName = 'qanastek/51-languages-classifier'
 textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
@@ -125,14 +124,16 @@ def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
+
 def textClassifier(textData):
-    inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into separate phrases. ### Input: {textData} ->:", return_tensors='pt')
+    inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into separate phrases. ### Input: {textData} ->:", return_tensors='pt').to(device)
     predictions = lang_sep_model.generate(**inputs, max_new_tokens=200)
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
+    pred = pred.split(",")
     print(pred)
     output = text_classifier(textData)
-    print(output[0])
-    res = output[0].split(",").replace("->:","")
+    print(output[0]["label"])
+    res = output[0]["label"]
     print(res)
     return res
 
