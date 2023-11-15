@@ -107,7 +107,7 @@ def audioEval():
     audio_path = os.path.join('uploads', audio_file.filename)
     audio_file.save(audio_path)
     with open(f'uploads/{audio_file.filename}', 'rb') as file:
-        result = mysp.mysppron(str(audio_file.filename),'home/ubuntu/text-audio/uploads/')
+        result = mysp.mysppron(str(audio_file.filename),'./uploads/')
         print(result)
         return result
 
