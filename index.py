@@ -106,8 +106,8 @@ def audioEval():
     random_uid = uuid.uuid4()
     audio_path = os.path.join('uploads', audio_file.filename)
     audio_file.save(audio_path)
-    with open(f'uploads/{random_uid}.wav', 'rb') as file:
-        result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
+    with open(f'uploads/{audio_file.filename}.wav', 'rb') as file:
+        result = mysp.mysppron(file,f'uploads/{audio_file.filename}.wav')
         print(result)
         return result
 
