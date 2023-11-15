@@ -131,7 +131,7 @@ def textClassifier(textData):
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
     print(pred)
     output = text_classifier(textData)
-    res = output.replace("->:","").split(",")
+    res = output.split(",").replace("->:","")
     print(res)
     return res
 
