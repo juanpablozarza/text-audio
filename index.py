@@ -103,8 +103,8 @@ def generateAudioFile(uid):
 def audioEval():
     audio_file = request.files['audio']
     random_uid = uuid.uuid4()
-    with open(f'uploads/{random_uid}.wav', 'wb') as f:
-     f.write(audio_file.content)
+    audio_path = os.path.join('uploads', audio_file.filename)
+    audio_file.save(audio_path)
     with open(f'uploads/{random_uid}.wav', 'rb') as file:
         result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
         print(result)
@@ -130,8 +130,9 @@ def textClassifier(textData):
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
     print(pred)
     output = text_classifier(textData)
-    print(output[0]['label'])
-    return output[0]['label']
+    res = output.replace("->:","").split(",")
+    print(res)
+    return res
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
