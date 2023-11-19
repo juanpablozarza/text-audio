@@ -1,7 +1,6 @@
 import uuid
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
-import nltk
 import numpy as np
 import boto3
 import torch
@@ -17,7 +16,9 @@ import os
 sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
 from peft import PeftModel, PeftConfig
-# preload_models()
+
+preload_models()
+
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
@@ -36,8 +37,7 @@ textClassfierModelName = 'qanastek/51-languages-classifier'
 textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
 textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
 text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
-# Download NLTK Data
-nltk.download("punkt")
+
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
@@ -65,6 +65,7 @@ def transcribe_audio(file):
         text += segment.text
     print(text)
     return text
+
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
     print(request.files)
@@ -120,22 +121,20 @@ def upload_to_s3(bytes,partition_key):
         result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
         print(result)
         return result
+    
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
     return audio_array
 
 def textClassifier(textData):
-    inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into separate phrases. ### Input: {textData} ->:", return_tensors='pt').to(device)
-    predictions = lang_sep_model.generate(**inputs, max_new_tokens=200)
-    pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
-    pred = pred.split(",")
-    print(pred)
+    # inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into separate phrases. ### Input: {textData} ->:", return_tensors='pt')
+    # predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
+    # pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
+    # print(pred)
     output = text_classifier(textData)
-    print(output[0]["label"])
-    res = output[0]["label"]
-    print(res)
-    return res
+    print(output[0]['label'])
+    return output[0]['label'].replace(":","")
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
