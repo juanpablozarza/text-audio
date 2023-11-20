@@ -94,20 +94,20 @@ def generateAudioFile(uid):
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
       speech =speech.numpy()
       sampRate = 16000
-    audio = AudioSegment.from_file(io.BytesIO(speech), format="wav")
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, sampRate, speech)  
+    audio = AudioSegment.from_file(byte_io, format="wav")
     # Slow down the audio by reducing the frame rate
     slowed_audio = audio._spawn(audio.raw_data, overrides={
     "frame_rate": int(sampRate * 0.75)}).set_frame_rate(sampRate)
     # Export the slowed audio to bytes
-    byte_io = io.BytesIO()
     slowed_audio.export(byte_io, format="wav")
     slowed_wav_bytes = byte_io.getvalue()  
-    # bytes_wav = bytes()
-    # byte_io = io.BytesIO(bytes_wav)
-    # write(byte_io, sampRate, speech)
     # wav_bytes = byte_io.read()
     # byte_io.seek(0)
     return upload_to_s3(slowed_wav_bytes, uid)
+
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
