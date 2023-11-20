@@ -10,6 +10,7 @@ import soundfile as sf
 from datasets import load_dataset
 import io
 from pydub import AudioSegment
+import librosa
 from scipy.io.wavfile import write
 from datetime import datetime
 import sys
