@@ -100,7 +100,7 @@ def generateAudioFile(uid):
     audio = AudioSegment.from_file(byte_io, format="wav")
     # Slow down the audio by reducing the frame rate
     slowed_audio = audio._spawn(audio.raw_data, overrides={
-    "frame_rate": int(sampRate * 0.75)}).set_frame_rate(sampRate)
+    "frame_rate": int(sampRate * 0.85)}).set_frame_rate(sampRate)
     # Export the slowed audio to bytes
     slowed_audio.export(byte_io, format="wav")
     slowed_wav_bytes = byte_io.getvalue()  
