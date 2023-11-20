@@ -94,14 +94,14 @@ def generateAudioFile(uid):
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
       speech =speech.numpy()
       sampRate = 16000
-    write('temp.wav', speech, sampRate)
+    sf.write('temp.wav', speech, sampRate)
     # Load the audio file using librosa
     sig, sampR = librosa.load('temp.wav', sr=sampRate)
     # Apply time-stretching to slow down the audio without changing the pitch
     slowed_y = librosa.effects.time_stretch(sig, rate=0.85)
     # Write the time-stretched audio to a byte buffer
     byte_io = io.BytesIO()
-    write(byte_io, slowed_y, sampR, format='wav')
+    sf.write(byte_io, slowed_y, sampR, format='wav')
     byte_io.seek(0)
     slowed_wav_bytes = byte_io.read()
     # Return the uploaded file URL or identifier
