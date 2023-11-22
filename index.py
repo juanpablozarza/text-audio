@@ -95,18 +95,12 @@ def generateAudioFile(uid):
       speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
       speech =speech.numpy()
       sampRate = 16000
-    sf.write('temp.wav', speech, sampRate)
-    # Load the audio file using librosa
-    sig, sampR = librosa.load('temp.wav', sr=sampRate)
-    # Apply time-stretching to slow down the audio without changing the pitch
-    slowed_y = librosa.effects.time_stretch(sig, rate=0.85)
-    # Write the time-stretched audio to a byte buffer
-    byte_io = io.BytesIO()
-    sf.write(byte_io, slowed_y, sampR, format='wav')
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, sampRate, speech)
+    wav_bytes = byte_io.read()
     byte_io.seek(0)
-    slowed_wav_bytes = byte_io.read()
-    # Return the uploaded file URL or identifier
-    return upload_to_s3(slowed_wav_bytes, uid)
+    return upload_to_s3(wav_bytes, uid)
 
 
 @app.route("/audioEval", methods=['POST'])
