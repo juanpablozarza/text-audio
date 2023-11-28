@@ -50,14 +50,14 @@ model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
 
-# Mini model used for lang separation
-peft_model_id = "Juanpablozarza292/LaMini-Flan-T5-finetune-lang"
-config = PeftConfig.from_pretrained(peft_model_id)
-print(config)
-lang_sep_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
-lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
-# Load the Lora model
-lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
+# # Mini model used for lang separation
+# peft_model_id = "Juanpablozarza292/LaMini-Flan-T5-finetune-lang"
+# config = PeftConfig.from_pretrained(peft_model_id)
+# print(config)
+# lang_sep_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
+# lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
+# # Load the Lora model
+# lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
 def transcribe_audio(file):
     print('Starting transcription')
