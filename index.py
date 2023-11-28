@@ -80,15 +80,18 @@ voice_preset = "v2/en_speaker_6"
 # lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 # # Load the Lora model
 # lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
-
 def transcribe_audio(file):
-    filename = file.filename
-    file.save(os.path.join("/uploads", filename))
-    result = whisper_pipe(f"/uploads/{filename}")
+    # Generate a unique filename with the original file extension
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join("./uploads", secure_filename(filename))
+    # Save the file
+    file.save(file_path)
+    # Process the file with Whisper
+    result = whisper_pipe(file_path)
     print(result['text'])
-    # for segment in segments:
-    #     text += segment.text
-    # print(text)
+    # Delete the file after processing
+    os.remove(file_path)
     return result['text']
 
 @app.route("/transcribe", methods=["POST"])
