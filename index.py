@@ -81,16 +81,10 @@ voice_preset = "v2/en_speaker_6"
 # # Load the Lora model
 # lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
-
 def transcribe_audio(file):
-    print('Starting transcription')
-    audio_bytes = file.read()
-    # Convert bytes to an audio format that can be processed (e.g., WAV)
-    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
-    #  Convert audio to NumPy array
-    samples = np.array(audio.get_array_of_samples())
-    text = ""
-    result = whisper_pipe(samples)
+    filename = file.filename
+    file.save(os.path.join("/uploads", filename))
+    result = whisper_pipe(f"/uploads/{filename}")
     print(result['text'])
     # for segment in segments:
     #     text += segment.text
