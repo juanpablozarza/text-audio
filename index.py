@@ -18,7 +18,7 @@ import os
 sys.path.insert(0, './bark')
 from bark import SAMPLE_RATE, generate_audio, preload_models
 from peft import PeftModel, PeftConfig
-
+from werkzeug.utils import secure_filename
 preload_models()
 
 mysp= __import__("my-voice-analysis")
