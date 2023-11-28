@@ -84,8 +84,13 @@ voice_preset = "v2/en_speaker_6"
 
 def transcribe_audio(file):
     print('Starting transcription')
+    audio_bytes = file.read()
+    # Convert bytes to an audio format that can be processed (e.g., WAV)
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+    #  Convert audio to NumPy array
+    samples = np.array(audio.get_array_of_samples())
     text = ""
-    result = whisper_pipe(file)
+    result = whisper_pipe(samples)
     print(result['text'])
     # for segment in segments:
     #     text += segment.text
