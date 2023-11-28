@@ -4,7 +4,7 @@ from faster_whisper import WhisperModel
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM , AutoProcessor, TextClassificationPipeline
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq,  pipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -28,7 +28,29 @@ model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 # Run on GPU with FP16
-whisper = WhisperModel(model_size, device=device, compute_type="float16")
+# whisper = WhisperModel(model_size, device=device, compute_type="float16")
+
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
+whisper_model_id = "distil-whisper/distil-large-v2"
+
+whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
+    whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+)
+whisper.to(device)
+
+processor = AutoProcessor.from_pretrained(whisper_model_id)
+whisper_pipe = pipeline(
+    "automatic-speech-recognition",
+    model=whisper,
+    tokenizer=processor.tokenizer,
+    feature_extractor=processor.feature_extractor,
+    max_new_tokens=128,
+    torch_dtype=torch_dtype,
+    device=device,
+)
 # or run on GPU with INT8
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
@@ -59,14 +81,16 @@ voice_preset = "v2/en_speaker_6"
 # # Load the Lora model
 # lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
+
 def transcribe_audio(file):
     print('Starting transcription')
     text = ""
-    segments, info = whisper.transcribe(file, beam_size=5)
-    for segment in segments:
-        text += segment.text
-    print(text)
-    return text
+    result = whisper_pipe(file)
+    print(result['text'])
+    # for segment in segments:
+    #     text += segment.text
+    # print(text)
+    return result['text']
 
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
