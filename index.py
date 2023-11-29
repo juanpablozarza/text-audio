@@ -101,8 +101,8 @@ def transcribe_audio(file):
 
     # Delete the file(s) after processing
     os.remove(file_path)
-    if ext.lower() == '.caf':
-        os.remove(wav_path)
+    # if ext.lower() == '.caf':
+    #     os.remove(wav_path)
 
     return result['text']
     
