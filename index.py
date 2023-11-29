@@ -80,20 +80,32 @@ voice_preset = "v2/en_speaker_6"
 # lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 # # Load the Lora model
 # lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
+
 def transcribe_audio(file):
     # Generate a unique filename with the original file extension
     ext = os.path.splitext(file.filename)[1]
     filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join("./uploads", secure_filename(filename))
-    # Save the file
+    # Save the original file
     file.save(file_path)
+    # Check if the file is in CAF format and convert to WAV if necessary
+    if ext.lower() == '.caf':
+        audio = AudioSegment.from_file(file_path, format='caf')
+        wav_path = file_path.replace('.caf', '.wav')
+        audio.export(wav_path, format='wav')
+        # Update file_path to the new WAV file
+        file_path = wav_path
     # Process the file with Whisper
     result = whisper_pipe(file_path)
     print(result['text'])
-    # Delete the file after processing
-    os.remove(file_path)
-    return result['text']
 
+    # Delete the file(s) after processing
+    os.remove(file_path)
+    if ext.lower() == '.caf':
+        os.remove(wav_path)
+
+    return result['text']
+    
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
     print(request.files)
