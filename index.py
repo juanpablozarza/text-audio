@@ -20,6 +20,7 @@ from bark import SAMPLE_RATE, generate_audio, preload_models
 from peft import PeftModel, PeftConfig
 from werkzeug.utils import secure_filename
 preload_models()
+from optimum.bettertransformer import BetterTransformer
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -34,13 +35,12 @@ print(device)
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-
 whisper_model_id = "openai/whisper-large-v3"
 
 whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
     whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
 )
-whisper = whisper.to_bettertransformer()
+whisper =  BetterTransformer.transform(whisper)
 whisper.to(device)
 
 processor = AutoProcessor.from_pretrained(whisper_model_id)
