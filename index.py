@@ -123,24 +123,19 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
-    lang = textClassifier(textData)
-    sampRate = 0
-    if lang != "en-US":
-        speech = spanishTTS(textData)
-        sampRate = SAMPLE_RATE
-    else:        
-      inputs = processor(text=textData, return_tensors="pt")
-      embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-      speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-      speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-      speech =speech.numpy()
-      sampRate = 16000
+    inputs = processor(text=textData, return_tensors="pt")
+    embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+    speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+    speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+    speech =speech.numpy()
+    sampRate = 16000
     bytes_wav = bytes()
     byte_io = io.BytesIO(bytes_wav)
     write(byte_io, sampRate, speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
     return upload_to_s3(wav_bytes, uid)
+
 
 
 @app.route("/audioEval", methods=['POST'])
