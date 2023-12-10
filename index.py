@@ -64,6 +64,13 @@ textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
 textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
 text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
 
+
+
+
+model = VitsModel.from_pretrained("facebook/mms-tts-spa")
+tokenizer = AutoTokenizer.from_pretrained("facebook/mms-tts-spa")
+
+
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
@@ -123,6 +130,10 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
+    inputs = tokenizer(textData, return_tensors="pt")
+    with torch.no_grad():
+      output = model(**inputs).waveform
+    scipy.io.wavfile.write("techno.wav", rate=model.config.sampling_rate, data=output)
     inputs = processor(text=textData, return_tensors="pt")
     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
