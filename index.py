@@ -133,7 +133,7 @@ def generateAudioFile(uid):
     inputs = tokenizer_spa(textData, return_tensors="pt")
     with torch.no_grad():
       output = model_spa(**inputs).waveform
-    scipy.io.wavfile.writewrite("techno.wav", rate=model_spa.config.sampling_rate, data=output)
+    scipy.io.wavfile.write("techno.wav", rate=model_spa.config.sampling_rate, data=output)
     inputs = processor(text=textData, return_tensors="pt")
     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
