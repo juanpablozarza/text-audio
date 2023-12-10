@@ -21,7 +21,7 @@ from peft import PeftModel, PeftConfig
 from werkzeug.utils import secure_filename
 preload_models()
 from optimum.bettertransformer import BetterTransformer
-
+import scipy
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
@@ -133,7 +133,7 @@ def generateAudioFile(uid):
     inputs = tokenizer_spa(textData, return_tensors="pt")
     with torch.no_grad():
       output = model_spa(**inputs).waveform
-    write("techno.wav", rate=model_spa.config.sampling_rate, data=output)
+    scipy.io.wavfile.writewrite("techno.wav", rate=model_spa.config.sampling_rate, data=output)
     inputs = processor(text=textData, return_tensors="pt")
     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
