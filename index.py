@@ -13,6 +13,7 @@ from pydub import AudioSegment
 import librosa
 from scipy.io.wavfile import write
 from datetime import datetime
+import scipy
 import sys
 import os
 sys.path.insert(0, './bark')
@@ -21,6 +22,12 @@ from peft import PeftModel, PeftConfig
 from werkzeug.utils import secure_filename
 preload_models()
 from optimum.bettertransformer import BetterTransformer
+from peft import PeftModel, PeftConfig
+import ast
+
+
+
+
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
@@ -42,12 +49,12 @@ whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
 whisper =  BetterTransformer.transform(whisper)
 whisper.to(device)
 
-processor = AutoProcessor.from_pretrained(whisper_model_id)
+processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
 whisper_pipe = pipeline(
     "automatic-speech-recognition",
     model=whisper,
-    tokenizer=processor.tokenizer,
-    feature_extractor=processor.feature_extractor,
+    tokenizer=processor_whisper.tokenizer,
+    feature_extractor=processor_whisper.feature_extractor,
     max_new_tokens=128,
     torch_dtype=torch_dtype,
     device=device,
@@ -66,6 +73,10 @@ text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer
 
 
 
+model_spa = VitsModel.from_pretrained("facebook/mms-tts-spa")
+tokenizer_spa = AutoTokenizer.from_pretrained("facebook/mms-tts-spa")
+
+
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
 # Load processor and model when server starts
@@ -76,14 +87,18 @@ model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
 
+
+
 # # Mini model used for lang separation
-# peft_model_id = "Juanpablozarza292/LaMini-Flan-T5-finetune-lang"
-# config = PeftConfig.from_pretrained(peft_model_id)
-# print(config)
-# lang_sep_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
-# lang_sep_tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
-# # Load the Lora model
-# lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
+
+peft_model_id = "Juanpablozarza292/T5-lang-classifier-7b1-lora"
+config = PeftConfig.from_pretrained(peft_model_id)
+pipeline = pipeline('text2text-generation', model = "MBZUAI/LaMini-Flan-T5-783M")
+
+lang_sep_model = pipeline.model
+lang_sep_tokenizer = pipeline.tokenizer
+# Load the Lora model
+lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
 def transcribe_audio(file):
     # Generate a unique filename with the original file extension
@@ -125,6 +140,7 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
+    text_classifier(textData)
     inputs = processor(text=textData, return_tensors="pt")
     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
@@ -168,11 +184,14 @@ def spanishTTS(textData):
     return audio_array
 
 def textClassifier(textData):
-    # inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into separate phrases. ### Input: {textData} ->:", return_tensors='pt')
-    # predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
-    # pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
-    # print(pred)
-    output = text_classifier(textData)
+    inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into phrases according to language. sentence:{textData}", return_tensors='pt')
+    predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
+    pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
+    print(pred)
+    chunks = ast.literal_eval(pred)
+    for chunk in chunks:
+     output = text_classifier(textData)
+     print(f"Chunk: {chunk}, Language: {output[0]['label']}")
     print(output[0]['label'])
     return output[0]['label'].replace(":","")
 
@@ -196,3 +215,4 @@ port =8080
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
     print("App running on port", port)
+
