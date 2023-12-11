@@ -211,7 +211,7 @@ def upload_to_s3(bytes,partition_key):
     print(presigned_url)
     return presigned_url
 
-port =8080
+port =2002
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=port)
     print("App running on port", port)
