@@ -144,7 +144,7 @@ def generateAudioFile(uid):
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
 
-    temp_files = []
+    combined_audio = None
     
     for chunk in langs: 
         if langs[chunk] == "en":
@@ -155,18 +155,22 @@ def generateAudioFile(uid):
             sampRate = 16000
             # Convert tensor to numpy array
             speech = speech.numpy()
+            temp_audio = AudioSegment(data=speech, sample_width=2, frame_rate=16000, channels=1)
         else:
             # Generate audio from text
             speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
             sampRate = SAMPLE_RATE
-        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as list_file:
-                for temp_file in temp_files:
-                    list_file.write(f"file '{temp_file}'\n")
-                    
-    # Concatenate using ffmpeg with the concat filter
-    concat_command = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file.name, '-c', 'copy', 'output.wav']
-    subprocess.run(concat_command)
-    # Read the concatenated file and prepare for upload
+            temp_audio = AudioSegment(data=speech, sample_width=2, frame_rate=SAMPLE_RATE, channels=1)
+
+        # Concatenate audio
+        if combined_audio is None:
+            combined_audio = temp_audio
+        else:
+            combined_audio += temp_audio
+
+    # Export combined audio
+    combined_audio.export("output.wav", format="wav")
+
     with open("output.wav", "r") as file:
         wav_bytes = file.read()
     # Clean up temporary files and the list file
