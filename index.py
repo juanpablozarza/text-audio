@@ -194,7 +194,7 @@ def textClassifier(textData):
     chunks = ast.literal_eval(pred)
     lang_chunks = {}
     for chunk in chunks:
-      output = text_classifier(textData)
+      output = text_classifier(chunk)
       lang_chunks[chunk] = output[0]['label']  
       logging.info(f"Chunk: {chunk}, Language: {output[0]['label']}")
     print(output[0]['label'])
