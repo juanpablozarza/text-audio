@@ -189,11 +189,13 @@ def textClassifier(textData):
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
     print(pred)
     chunks = ast.literal_eval(pred)
+    lang_chunks = {}
     for chunk in chunks:
-     output = text_classifier(textData)
-     print(f"Chunk: {chunk}, Language: {output[0]['label']}")
+      output = text_classifier(textData)
+      lang_chunks[chunk] = output[0]['label']  
+      print(f"Chunk: {chunk}, Language: {output[0]['label']}")
     print(output[0]['label'])
-    return output[0]['label'].replace(":","")
+    return lang_chunks
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
