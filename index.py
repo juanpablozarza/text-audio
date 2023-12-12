@@ -140,7 +140,8 @@ def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
-    text_classifier(textData)
+    langs = text_classifier(textData)
+    print(f"Langs: {langs}")
     inputs = processor(text=textData, return_tensors="pt")
     embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
     speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
