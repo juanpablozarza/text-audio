@@ -198,7 +198,7 @@ def textClassifier(textData):
       lang_chunks[chunk] = output[0]['label']  
       logging.info(f"Chunk: {chunk}, Language: {output[0]['label']}")
     print(output[0]['label'])
-    return lang_chunks
+    return chunks
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
