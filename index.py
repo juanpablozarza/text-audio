@@ -67,7 +67,7 @@ whisper_pipe = pipeline(
 # model = WhisperModel(model_size, device="cpu", compute_type="int8")
 # Text to speech model for spanish
 # Text classifier 
-textClassfierModelName = 'qanastek/51-languages-classifier'
+textClassfierModelName = 'papluca/xlm-roberta-base-language-detection'
 textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
 textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
 text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
