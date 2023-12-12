@@ -190,15 +190,12 @@ def textClassifier(textData):
     inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into phrases according to language. sentence:{textData}", return_tensors='pt')
     predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
     pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
-    logging.info(pred)
     chunks = ast.literal_eval(pred)
     lang_chunks = {}
     for chunk in chunks:
       output = text_classifier(chunk)
       lang_chunks[chunk] = output[0]['label']  
-      logging.info(f"Chunk: {chunk}, Language: {output[0]['label']}")
-    print(output[0]['label'])
-    return pred
+    return lang_chunks
 
 def upload_to_s3(bytes,partition_key):
     # Format the datetime object to a string
