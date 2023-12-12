@@ -144,7 +144,7 @@ def generateAudioFile(uid):
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
 
-    combined_audio = None
+    combined_audio = AudioSegment.empty()
     
     for chunk in langs: 
         if langs[chunk] == "en":
