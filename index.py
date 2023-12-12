@@ -167,6 +167,8 @@ def generateAudioFile(uid):
     concat_command = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file.name, '-c', 'copy', 'output.wav']
     subprocess.run(concat_command)
     # Read the concatenated file and prepare for upload
+    with open("output.wav", "r") as file:
+        wav_bytes = file.read()
     # Clean up temporary files and the list file
     for temp_file in temp_files:
         os.remove(temp_file)   # Upload to S3 and return the result
