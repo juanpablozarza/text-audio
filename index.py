@@ -154,6 +154,7 @@ def generateAudioFile(uid):
             sampRate = 16000
         else:
             # Generate audio from text
+            print(f"Spanish: {chunk} ")
             speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
             sampRate = SAMPLE_RATE
 
