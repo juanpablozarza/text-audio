@@ -151,6 +151,7 @@ def generateAudioFile(uid):
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
             speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+            speech = speech.numpy()
             sampRate = 16000
         else:
             # Generate audio from text
@@ -159,7 +160,6 @@ def generateAudioFile(uid):
             sampRate = SAMPLE_RATE
 
         # Convert tensor to numpy array and store in list
-        speech = speech.numpy()
         concatenated_speech.append(speech)
     # Concatenate all speech outputs
     concatenated_speech = np.concatenate(concatenated_speech, axis=0)
