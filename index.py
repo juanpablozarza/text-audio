@@ -26,6 +26,7 @@ from peft import PeftModel, PeftConfig
 import ast
 import logging
 from bark import SAMPLE_RATE, generate_audio, preload_models
+import tempfile
 logging.basicConfig(level=logging.INFO)
 
 
@@ -135,6 +136,7 @@ def upload_file():
     return jsonify({"transcribed_text": transcribed_text})
     
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
+
 def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
@@ -142,8 +144,7 @@ def generateAudioFile(uid):
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
 
-    # List to store speech data from each chunk
-    concatenated_speech = []
+    temp_files = []
 
     for chunk in langs: 
         if langs[chunk] == "en":
@@ -151,27 +152,35 @@ def generateAudioFile(uid):
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
             speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-            speech = speech.numpy()
             sampRate = 16000
         else:
             # Generate audio from text
-            print(f"Spanish: {chunk} ")
-            speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
+            speech = generate_audio(chunk)
             sampRate = SAMPLE_RATE
 
-        # Convert tensor to numpy array and store in list
-        concatenated_speech.append(speech)
-    # Concatenate all speech outputs
-    concatenated_speech = np.concatenate(concatenated_speech, axis=0)
-    # Save concatenated speech to a WAV file in memory
-    bytes_wav = bytes()
-    byte_io = io.BytesIO(bytes_wav)
-    write(byte_io, sampRate, concatenated_speech)
-    wav_bytes = byte_io.getvalue()
+        # Convert tensor to numpy array
+        speech = speech.numpy()
+
+        # Save each chunk to a temporary WAV file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as f:
+            write(f, sampRate, speech)
+            temp_files.append(f.name)
+
+    # Concatenate audio files using ffmpeg
+    concat_command = ['ffmpeg', '-y', '-i', 'concat:' + '|'.join(temp_files), '-c', 'copy', 'output.wav']
+    subprocess.run(concat_command)
+
+    # Read the concatenated file and prepare for upload
+    with open('output.wav', 'rb') as f:
+        wav_bytes = f.read()
+
+    # Clean up temporary files
+    for temp_file in temp_files:
+        os.remove(temp_file)
+    os.remove('output.wav')
 
     # Upload to S3 and return the result
     return upload_to_s3(wav_bytes, uid)
-
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
