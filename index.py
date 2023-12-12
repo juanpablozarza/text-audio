@@ -136,7 +136,6 @@ def upload_file():
     return jsonify({"transcribed_text": transcribed_text})
     
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
-
 def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
@@ -153,13 +152,13 @@ def generateAudioFile(uid):
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
             speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
             sampRate = 16000
+            # Convert tensor to numpy array
+            speech = speech.numpy()
         else:
             # Generate audio from text
-            speech = generate_audio(chunk)
+            speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
             sampRate = SAMPLE_RATE
 
-        # Convert tensor to numpy array
-        speech = speech.numpy()
 
         # Save each chunk to a temporary WAV file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as f:
