@@ -145,7 +145,7 @@ def generateAudioFile(uid):
     print(f"Langs: {langs}")
 
     temp_files = []
-
+    
     for chunk in langs: 
         if langs[chunk] == "en":
             inputs = processor(text=chunk, return_tensors="pt")
@@ -159,28 +159,17 @@ def generateAudioFile(uid):
             # Generate audio from text
             speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
             sampRate = SAMPLE_RATE
-
-
-        # Save each chunk to a temporary WAV file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as f:
-            write(f, sampRate, speech)
-            temp_files.append(f.name)
-
-    # Concatenate audio files using ffmpeg
-    print(len(temp_files))
-    concat_command = ['ffmpeg', '-y', '-i', 'concat:' + '|'.join(temp_files), '-c', 'copy', 'output.wav']
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as list_file:
+                for temp_file in temp_files:
+                    list_file.write(f"file '{temp_file}'\n")
+                    
+    # Concatenate using ffmpeg with the concat filter
+    concat_command = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file.name, '-c', 'copy', 'output.wav']
     subprocess.run(concat_command)
-
     # Read the concatenated file and prepare for upload
-    with open('output.wav', 'rb') as f:
-        wav_bytes = f.read()
-
-    # Clean up temporary files
+    # Clean up temporary files and the list file
     for temp_file in temp_files:
-        os.remove(temp_file)
-    os.remove('output.wav')
-
-    # Upload to S3 and return the result
+        os.remove(temp_file)   # Upload to S3 and return the result
     return upload_to_s3(wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
