@@ -25,7 +25,7 @@ from optimum.bettertransformer import BetterTransformer
 from peft import PeftModel, PeftConfig
 import ast
 import logging
-
+from bark import SAMPLE_RATE, generate_audio, preload_models
 logging.basicConfig(level=logging.INFO)
 
 
@@ -72,12 +72,8 @@ textClassfierTokenizer = AutoTokenizer.from_pretrained(textClassfierModelName)
 textClassfierModel = AutoModelForSequenceClassification.from_pretrained(textClassfierModelName)
 text_classifier = TextClassificationPipeline(model=textClassfierModel, tokenizer=textClassfierTokenizer) 
 
-
-
-
-model_spa = VitsModel.from_pretrained("facebook/mms-tts-spa")
-tokenizer_spa = AutoTokenizer.from_pretrained("facebook/mms-tts-spa")
-
+# download and load all models
+preload_models()
 
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
@@ -137,6 +133,7 @@ def upload_file():
         return jsonify({"error": "No selected file"})
     transcribed_text = transcribe_audio(file)
     return jsonify({"transcribed_text": transcribed_text})
+    
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
     print('Generating audio file...')
@@ -144,19 +141,35 @@ def generateAudioFile(uid):
     textData = reqData.get("textData")
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
-    inputs = processor(text=textData, return_tensors="pt")
-    embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-    speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
-    speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-    speech =speech.numpy()
-    sampRate = 16000
+
+    # List to store speech data from each chunk
+    concatenated_speech = []
+
+    for chunk in langs: 
+        if langs[chunk] == "en":
+            inputs = processor(text=chunk, return_tensors="pt")
+            embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+            speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
+            speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+            sampRate = 16000
+        else:
+            # Generate audio from text
+            speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
+            sampRate = SAMPLE_RATE
+
+        # Convert tensor to numpy array and store in list
+        speech = speech.numpy()
+        concatenated_speech.append(speech)
+    # Concatenate all speech outputs
+    concatenated_speech = np.concatenate(concatenated_speech, axis=0)
+    # Save concatenated speech to a WAV file in memory
     bytes_wav = bytes()
     byte_io = io.BytesIO(bytes_wav)
-    write(byte_io, sampRate, speech)
-    wav_bytes = byte_io.read()
-    byte_io.seek(0)
-    return upload_to_s3(wav_bytes, uid)
+    write(byte_io, sampRate, concatenated_speech)
+    wav_bytes = byte_io.getvalue()
 
+    # Upload to S3 and return the result
+    return upload_to_s3(wav_bytes, uid)
 
 
 @app.route("/audioEval", methods=['POST'])
