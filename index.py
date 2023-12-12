@@ -167,6 +167,7 @@ def generateAudioFile(uid):
             temp_files.append(f.name)
 
     # Concatenate audio files using ffmpeg
+    print(len(temp_files))
     concat_command = ['ffmpeg', '-y', '-i', 'concat:' + '|'.join(temp_files), '-c', 'copy', 'output.wav']
     subprocess.run(concat_command)
 
