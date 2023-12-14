@@ -144,7 +144,7 @@ def generateAudioFile(uid):
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
 
-    combined_audio = AudioSegment.empty()
+    combined_audio = [] 
     
     for chunk in langs: 
         if langs[chunk] == "en":
@@ -155,27 +155,22 @@ def generateAudioFile(uid):
             sampRate = 16000
             # Convert tensor to numpy array
             speech = speech.numpy()
-            temp_audio = AudioSegment(data=speech, sample_width=2, frame_rate=16000, channels=1)
+            resampled_segment =librosa.resample(speech, orig_sr=sampRate, target_sr=SAMPLE_RATE)
+            combined_audio.append(resampled_segment)
         else:
             # Generate audio from text
             speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
             sampRate = SAMPLE_RATE
-            temp_audio = AudioSegment(data=speech, sample_width=2, frame_rate=SAMPLE_RATE, channels=1)
-
-        # Concatenate audio
-        if combined_audio is None:
-            combined_audio = temp_audio
-        else:
-            combined_audio += temp_audio
+            combined_audio.append(speech)
 
     # Export combined audio
-    combined_audio.export("output.wav", format="wav")
-
-    with open("output.wav", "r") as file:
-        wav_bytes = file.read()
-    # Clean up temporary files and the list file
-    for temp_file in temp_files:
-        os.remove(temp_file)   # Upload to S3 and return the result
+    print(f"Sample rate: {SAMPLE_RATE}")
+    resampled_speech = np.concatenate(combined_audio)
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, SAMPLE_RATE, resampled_speech)
+    wav_bytes = byte_io.read()
+    byte_io.seek(0)
     return upload_to_s3(wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
