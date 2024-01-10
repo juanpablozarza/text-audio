@@ -1,6 +1,6 @@
 import uuid
 from flask import Flask, request, jsonify
-from faster_whisper import WhisperModel
+
 import numpy as np
 import boto3
 import torch
@@ -21,7 +21,6 @@ from bark import SAMPLE_RATE, generate_audio, preload_models
 from peft import PeftModel, PeftConfig
 from werkzeug.utils import secure_filename
 preload_models()
-from optimum.bettertransformer import BetterTransformer
 from peft import PeftModel, PeftConfig
 import ast
 import logging
@@ -29,12 +28,18 @@ from bark import SAMPLE_RATE, generate_audio, preload_models
 import tempfile
 import subprocess
 logging.basicConfig(level=logging.INFO)
-
-
+from pydub import AudioSegment
+from pydub.playback import play
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
 app = Flask(__name__)
+cred = credentials.Certificate("serviceAccount.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 model_size = "large-v2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
@@ -50,7 +55,6 @@ whisper_model_id = "openai/whisper-large-v3"
 whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
     whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
 )
-whisper =  BetterTransformer.transform(whisper)
 whisper.to(device)
 
 processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
@@ -135,7 +139,51 @@ def upload_file():
         return jsonify({"error": "No selected file"})
     transcribed_text = transcribe_audio(file)
     return jsonify({"transcribed_text": transcribed_text})
-    
+
+def fix_string_literals(s):
+    # Fix missing closing commas
+    s = s.replace('", "', '", "').replace('",  "', '", "').replace('",   "', '", "')
+
+    # Try to convert the fixed string to a list using ast.literal_eval
+    try:
+        result = ast.literal_eval(s)
+        if isinstance(result, list):
+            return result
+    except:
+        pass
+
+    # If the above fails, manually split and clean up the string
+    chunks = s.split('", "')
+    cleaned_chunks = []
+    for chunk in chunks:
+        cleaned_chunk = chunk.strip().strip('"')
+        cleaned_chunks.append(cleaned_chunk)
+
+    return cleaned_chunks
+
+
+def slowdownAudio(uid: str, audio_array:np.array):
+    # Check user's classId and slow down the audio accordingly
+    userRef = db.collection("users").document(uid)
+    userDoc = userRef.get().to_dict()
+    lastLesson = userDoc["lessons"][-1]
+    classId = lastLesson["classId"]
+    if classId.startswith("A"): 
+        playback_speed = 0.5
+    elif classId.startswith("B"):
+        playback_speed = 0.75
+    elif classId.startswith("C"):
+        playback_speed = 1.0
+    # Load the audio file
+    audio = AudioSegment.from_file(io.BytesIO(audio_array), format="wav")
+    # Slow down the audio to half its speed
+    slowed_audio = audio.speedup(playback_speed=playback_speed)
+    # Save the slowed audio
+    slowed_audio_bytes = io.BytesIO()
+    slowed_audio.export(slowed_audio_bytes, format="wav")
+    slowed_audio_bytes = slowed_audio_bytes.getvalue()
+    return slowed_audio_bytes
+     
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
     print('Generating audio file...')
@@ -143,11 +191,11 @@ def generateAudioFile(uid):
     textData = reqData.get("textData")
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
-
     combined_audio = [] 
-    
     for chunk in langs: 
-        if langs[chunk] == "en":
+        print(f"Chunk: {chunk}")
+        spanish_sim_langs = ["it","fr", "pt","ro", "es"] 
+        if not langs[chunk] in spanish_sim_langs:
             inputs = processor(text=chunk, return_tensors="pt")
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
             speaker_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
@@ -171,7 +219,9 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
-    return upload_to_s3(wav_bytes, uid)
+    slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
+    # Slow down the audio if necessary
+    return upload_to_s3(slow_down_wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
@@ -184,16 +234,6 @@ def audioEval():
         print(result)
         return result
 
-def upload_to_s3(bytes,partition_key):
-  
-    audio_file = request.files['audio']
-    random_uid = uuid.uuid4()
-    with open(f'uploads/{random_uid}.wav', 'wb') as f:
-     f.write(audio_file.content)
-    with open(f'uploads/{random_uid}.wav', 'rb') as file:
-        result = mysp.mysppron(file,f'uploads/{random_uid}.wav')
-        print(result)
-        return result
     
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
@@ -201,14 +241,14 @@ def spanishTTS(textData):
     return audio_array
 
 def textClassifier(textData):
-    inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into phrases according to language. sentence:{textData}", return_tensors='pt')
-    predictions = lang_sep_model.generate(**inputs, max_new_tokens=150)
-    pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
-    chunks = ast.literal_eval(pred)
+    # inputs = lang_sep_tokenizer(f"### Instruction: Split the sentence into phrases according to language. sentence: {textData}", return_tensors='pt')
+    # predictions = lang_sep_model.generate(**inputs)
+    # pred = lang_sep_tokenizer.decode(predictions[0], skip_special_tokens=True)
+    # clean_chunks = fix_string_literals(pred)
     lang_chunks = {}
-    for chunk in chunks:
-      output = text_classifier(chunk)
-      lang_chunks[chunk] = output[0]['label']  
+    # for chunk in clean_chunks:
+    output = text_classifier(textData)
+    lang_chunks[textData] = output[0]['label']  
     return lang_chunks
 
 def upload_to_s3(bytes,partition_key):
