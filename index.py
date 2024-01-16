@@ -234,14 +234,14 @@ def audioEval():
     phonetic_dict = cmudict.dict()
     text = request.form['text']
     try:
-        user_phonetic = audio_to_phonetics(audio_file)
+        user_phonetic, user_text = audio_to_phonetics(audio_file)
     except Exception as e:
         print(e)    
         return jsonify({"error": "Audio file not supported"})    
     score = compare_phonetics_score(user_phonetic,text)
     words = text.split()
     correct_phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
-    highlighted_text = highlight_word_mismatches(user_phonetic, correct_phonetics)
+    highlighted_text = highlight_word_mismatches(user_phonetic, correct_phonetics, user_text)
     print(f"Score: {score}")
     return {"score":score, "text": highlighted_text}
 
@@ -256,36 +256,35 @@ def compare_phonetics_score(user_phonetic:list, text: str):
             score -= 1
     return score
 
-def highlight_word_mismatches(user_phonetics, correct_phonetics):
-    highlighted_string = ""
-    mismatch_marker = " ./n ./n "
+def highlight_word_mismatches(user_phonetics, correct_phonetics, user_text):
+    mismatch_indices = find_mismatch_indices(user_phonetics, correct_phonetics)
+    highlighted_text = user_text
+    for index in mismatch_indices:
+        highlighted_text = highlighted_text.replace(highlighted_text.split()[index], f"<mark>{highlighted_text.split()[index]}</mark>")
+    return highlighted_text
 
-    for user_word, correct_word in zip(user_phonetics, correct_phonetics):
-        # Join the phonetic lists of the current word into strings
+def find_mismatch_indices(user_phonetics, correct_phonetics):
+    mismatch_indices = []
+
+    for index, (user_word, correct_word) in enumerate(zip(user_phonetics, correct_phonetics)):
         user_str = ' '.join(user_word)
         correct_str = ' '.join(correct_word)
 
-        # Get the opcodes for the optimal alignment
-        opcodes = lev.opcodes(user_str, correct_str)
-        for tag, i1, i2, j1, j2 in opcodes:
-            if tag == 'replace' or tag == 'delete':
-                highlighted_string += mismatch_marker + user_str[i1:i2] + mismatch_marker
-            elif tag == 'insert':
-                highlighted_string += mismatch_marker + correct_str[j1:j2] + mismatch_marker
-            else:
-                highlighted_string += user_str[i1:i2]
+        # Calculate Levenshtein distance
+        distance = lev.distance(user_str, correct_str)
 
-        highlighted_string += " / "  # Separator for words
+        # If distance is not zero, there is a mismatch
+        if distance != 0:
+            mismatch_indices.append(index)
 
-    return highlighted_string.strip()
-
+    return mismatch_indices
 def audio_to_phonetics(audio_file): 
     phonetic_dict = cmudict.dict()
     text = transcribe_audio(audio_file) 
     print(f"Transcribed text: {text}")
     words = text.split()
     phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
-    return phonetics
+    return phonetics, text
 
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
