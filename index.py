@@ -56,23 +56,28 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
 
-whisper_model_id = "Aspik101/distil-whisper-large-v3-pl"
+from faster_whisper import WhisperModel
 
-whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
-    whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
-)
+whisper = WhisperModel("large-v2")
 whisper.to(device)
 
-processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
-whisper_pipe = pipeline(
-    "automatic-speech-recognition",
-    model=whisper,
-    tokenizer=processor_whisper.tokenizer,
-    feature_extractor=processor_whisper.feature_extractor,
-    max_new_tokens=128,
-    torch_dtype=torch_dtype,
-    device=device,
-)
+# whisper_model_id = "openai/whisper-large-v3"
+
+# whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
+#     whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+# )
+# whisper.to(device)
+
+# processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
+# whisper_pipe = pipeline(
+#     "automatic-speech-recognition",
+#     model=whisper,
+#     tokenizer=processor_whisper.tokenizer,
+#     feature_extractor=processor_whisper.feature_extractor,
+#     max_new_tokens=128,
+#     torch_dtype=torch_dtype,
+#     device=device,
+# )
 # or run on GPU with INT8
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
@@ -125,13 +130,19 @@ def transcribe_audio(file):
         # Update file_path to the new WAV file
         file_path = wav_path
     # Process the file with Whisper
-    result = whisper_pipe(file_path)
-    print(result['text'])
+    segments, info = whisper.transcribe("audio.mp3")
+    full_text = ""
+    for segment in segments:
+        print(segment.text)
+        full_text += segment.text
+
+    # result = whisper_pipe(file_path)
+    # print(result['text'])
     # Delete the file(s) after processing
     os.remove(file_path)
     # if ext.lower() == '.caf':
     #     os.remove(wav_path)
-    return result['text']
+    return full_text
     
 @app.route("/transcribe", methods=["POST"])
 def upload_file():
