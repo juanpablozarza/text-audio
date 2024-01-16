@@ -262,6 +262,8 @@ def highlight_mismatches_levenshtein(user_phonetics, correct_phonetics):
     mismatch_marker = " ./n ./n "
 
     # Join the phonetic lists into strings
+    print(f"User phonetics: {user_phonetics}")
+    print(f"Correct phonetics: {correct_phonetics}")
     user_str = ' '.join(user_phonetics)
     correct_str = ' '.join(correct_phonetics)
 
