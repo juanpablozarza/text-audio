@@ -56,7 +56,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
 
-whisper_model_id = "openai/whisper-tiny"
+whisper_model_id = "openai/whisper-medium"
 
 whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
     whisper_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
