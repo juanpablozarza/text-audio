@@ -259,6 +259,7 @@ def compare_phonetics_score(user_phonetic:list, text: str):
 def audio_to_phonetics(audio_file): 
     phonetic_dict = cmudict.dict()
     text = transcribe_audio(audio_file) 
+    print(f"Transcribed text: {text}")
     words = text.split()
     phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
     return phonetics
