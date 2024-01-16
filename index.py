@@ -237,7 +237,7 @@ def audioEval():
     with open(f'uploads/{audio_file.filename}', 'rb') as file:
         try:
             user_phonetic = audio_to_phonetics(file)
-        except e as Exception:
+        except Exception as e:
             print(e)    
             return jsonify({"error": "Audio file not supported"})    
         score = compare_phonetics_score(user_phonetic,text)
