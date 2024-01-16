@@ -129,7 +129,7 @@ def transcribe_audio(file):
         # Update file_path to the new WAV file
         file_path = wav_path
     # Process the file with Whisper
-    segments, info = whisper.transcribe("audio.mp3")
+    segments, info = whisper.transcribe(file_path)
     full_text = ""
     for segment in segments:
         print(segment.text)
