@@ -12,6 +12,10 @@ WORKDIR /usr/src/app
 # Install Python dependencies
 COPY requirements.txt ./
 RUN pip3 install --no-cache-dir -r requirements.txt
+ENV DEBIAN_FRONTEND=noninteractive 
+
+
+RUN apt-get -y update && apt-get -y upgrade && apt-get install -y --no-install-recommends ffmpeg
 
 # Copy the rest of your application's code into the container at /app
 COPY . .
@@ -19,6 +23,7 @@ COPY . .
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-
+# Create empty uploads folder
+RUN mkdir uploads
 # Run index.py when the container launches
 CMD ["python3", "index.py"]

@@ -33,6 +33,10 @@ from pydub.playback import play
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+import audio_effects as ae
+import nltk
+nltk.download('cmudict')
+from nltk.corpus import cmudict
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -121,12 +125,10 @@ def transcribe_audio(file):
     # Process the file with Whisper
     result = whisper_pipe(file_path)
     print(result['text'])
-
     # Delete the file(s) after processing
     os.remove(file_path)
     # if ext.lower() == '.caf':
     #     os.remove(wav_path)
-
     return result['text']
     
 @app.route("/transcribe", methods=["POST"])
@@ -167,17 +169,19 @@ def slowdownAudio(uid: str, audio_array:np.array):
     userRef = db.collection("users").document(uid)
     userDoc = userRef.get().to_dict()
     lastLesson = userDoc["lessons"][-1]
-    classId = lastLesson["classId"]
+    lessonRef = db.collection("lessons").document(lastLesson)
+    lessonDoc = lessonRef.get().to_dict()
+    classId = lessonDoc["classId"]
     if classId.startswith("A"): 
-        playback_speed = 0.5
+        playback_speed = 0.80
     elif classId.startswith("B"):
-        playback_speed = 0.75
+        playback_speed = 0.90
     elif classId.startswith("C"):
         playback_speed = 1.0
     # Load the audio file
     audio = AudioSegment.from_file(io.BytesIO(audio_array), format="wav")
     # Slow down the audio to half its speed
-    slowed_audio = audio.speedup(playback_speed=playback_speed)
+    slowed_audio = ae.speed_down(audio, playback_speed)
     # Save the slowed audio
     slowed_audio_bytes = io.BytesIO()
     slowed_audio.export(slowed_audio_bytes, format="wav")
@@ -226,15 +230,39 @@ def generateAudioFile(uid):
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
     audio_file = request.files['audio']
+    text = request.form['text']
     random_uid = uuid.uuid4()
     audio_path = os.path.join('uploads', audio_file.filename)
     audio_file.save(audio_path)
     with open(f'uploads/{audio_file.filename}', 'rb') as file:
-        result = mysp.mysppron(str(audio_file.filename),'./uploads/')
-        print(result)
-        return result
+        try:
+            user_phonetic = audio_to_phonetics(file)
+        except:
+            return jsonify({"error": "Audio file not supported"})    
+        score = compare_phonetics_score(user_phonetic,text)
+        print(f"Score: {score}")
 
-    
+        return score
+
+def compare_phonetics_score(user_phonetic:list, text: str):
+    # For every missmatch in the phonetics, substract 1 to the score
+    phonetic_dict = cmudict.dict()
+    score = 100
+    words = text.split()
+    phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
+    for i in range(len(user_phonetic)):
+        if user_phonetic[i] != phonetics[i]:
+            score -= 1
+    return score
+
+     
+def audio_to_phonetics(audio_file): 
+    phonetic_dict = cmudict.dict()
+    text = transcribe_audio(audio_file) 
+    words = text.split()
+    phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
+    return phonetics
+
 def spanishTTS(textData):
     audio_array = generate_audio(textData, history_prompt="v2/es_speaker_8")
     write("results/output.wav", rate=SAMPLE_RATE, data=audio_array)
