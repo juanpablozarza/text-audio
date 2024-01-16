@@ -241,7 +241,7 @@ def audioEval():
     score = compare_phonetics_score(user_phonetic,text)
     words = text.split()
     correct_phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
-    highlighted_text = highlight_mismatches_levenshtein(user_phonetic, correct_phonetics)
+    highlighted_text = highlight_word_mismatches(user_phonetic, correct_phonetics)
     print(f"Score: {score}")
     return {"score":score, "text": highlighted_text}
 
@@ -256,30 +256,28 @@ def compare_phonetics_score(user_phonetic:list, text: str):
             score -= 1
     return score
 
-
-def highlight_mismatches_levenshtein(user_phonetics, correct_phonetics):
+def highlight_word_mismatches(user_phonetics, correct_phonetics):
     highlighted_string = ""
     mismatch_marker = " ./n ./n "
 
-    # Join the phonetic lists into strings
-    print(f"User phonetics: {user_phonetics}")
-    print(f"Correct phonetics: {correct_phonetics}")
-    user_str = ' '.join(user_phonetics)
-    correct_str = ' '.join(correct_phonetics)
+    for user_word, correct_word in zip(user_phonetics, correct_phonetics):
+        # Join the phonetic lists of the current word into strings
+        user_str = ' '.join(user_word)
+        correct_str = ' '.join(correct_word)
 
-    # Get the opcodes for the optimal alignment
-    opcodes = lev.opcodes(user_str, correct_str)
-    for tag, i1, i2, j1, j2 in opcodes:
-        if tag == 'replace' or tag == 'delete':
-            highlighted_string += mismatch_marker + user_str[i1:i2] + mismatch_marker
-        elif tag == 'insert':
-            # Handle insertion differently if needed
-            highlighted_string += mismatch_marker + correct_str[j1:j2] + mismatch_marker
-        else:
-            highlighted_string += user_str[i1:i2]
+        # Get the opcodes for the optimal alignment
+        opcodes = lev.opcodes(user_str, correct_str)
+        for tag, i1, i2, j1, j2 in opcodes:
+            if tag == 'replace' or tag == 'delete':
+                highlighted_string += mismatch_marker + user_str[i1:i2] + mismatch_marker
+            elif tag == 'insert':
+                highlighted_string += mismatch_marker + correct_str[j1:j2] + mismatch_marker
+            else:
+                highlighted_string += user_str[i1:i2]
 
-    return highlighted_string
+        highlighted_string += " / "  # Separator for words
 
+    return highlighted_string.strip()
 
 def audio_to_phonetics(audio_file): 
     phonetic_dict = cmudict.dict()
