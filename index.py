@@ -231,19 +231,14 @@ def generateAudioFile(uid):
 def audioEval():
     audio_file = request.files['audio']
     text = request.form['text']
-    random_uid = uuid.uuid4()
-    audio_path = os.path.join('uploads', audio_file.filename)
-    audio_file.save(audio_path)
-    with open(f'uploads/{audio_file.filename}', 'rb') as file:
-        try:
-            user_phonetic = audio_to_phonetics(file)
-        except Exception as e:
-            print(e)    
-            return jsonify({"error": "Audio file not supported"})    
-        score = compare_phonetics_score(user_phonetic,text)
-        print(f"Score: {score}")
-
-        return score
+    try:
+        user_phonetic = audio_to_phonetics(audio_file)
+    except Exception as e:
+        print(e)    
+        return jsonify({"error": "Audio file not supported"})    
+    score = compare_phonetics_score(user_phonetic,text)
+    print(f"Score: {score}")
+    return score
 
 def compare_phonetics_score(user_phonetic:list, text: str):
     # For every missmatch in the phonetics, substract 1 to the score
