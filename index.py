@@ -37,6 +37,7 @@ import audio_effects as ae
 import nltk
 nltk.download('cmudict')
 from nltk.corpus import cmudict
+import Levenshtein as lev
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -230,6 +231,7 @@ def generateAudioFile(uid):
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
     audio_file = request.files['audio']
+    phonetic_dict = cmudict.dict()
     text = request.form['text']
     try:
         user_phonetic = audio_to_phonetics(audio_file)
@@ -237,8 +239,11 @@ def audioEval():
         print(e)    
         return jsonify({"error": "Audio file not supported"})    
     score = compare_phonetics_score(user_phonetic,text)
+    words = text.split()
+    correct_phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
+    highlighted_text = highlight_mismatches_levenshtein(user_phonetic, correct_phonetics)
     print(f"Score: {score}")
-    return score
+    return {"score":score, "text": highlighted_text}
 
 def compare_phonetics_score(user_phonetic:list, text: str):
     # For every missmatch in the phonetics, substract 1 to the score
@@ -251,7 +256,29 @@ def compare_phonetics_score(user_phonetic:list, text: str):
             score -= 1
     return score
 
-     
+
+def highlight_mismatches_levenshtein(user_phonetics, correct_phonetics):
+    highlighted_string = ""
+    mismatch_marker = " ./n ./n "
+
+    # Join the phonetic lists into strings
+    user_str = ' '.join(user_phonetics)
+    correct_str = ' '.join(correct_phonetics)
+
+    # Get the opcodes for the optimal alignment
+    opcodes = lev.opcodes(user_str, correct_str)
+    for tag, i1, i2, j1, j2 in opcodes:
+        if tag == 'replace' or tag == 'delete':
+            highlighted_string += mismatch_marker + user_str[i1:i2] + mismatch_marker
+        elif tag == 'insert':
+            # Handle insertion differently if needed
+            highlighted_string += mismatch_marker + correct_str[j1:j2] + mismatch_marker
+        else:
+            highlighted_string += user_str[i1:i2]
+
+    return highlighted_string
+
+
 def audio_to_phonetics(audio_file): 
     phonetic_dict = cmudict.dict()
     text = transcribe_audio(audio_file) 
