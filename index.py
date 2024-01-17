@@ -1,3 +1,4 @@
+import random
 import uuid
 from flask import Flask, request, jsonify
 
@@ -233,7 +234,7 @@ def generateAudioFile(uid):
 def audioEval():
     audio_file = request.files['audio']
     phonetic_dict = cmudict.dict()
-    text = request.form['text']
+    text = request.form['title']
     try:
         user_phonetic, user_text = audio_to_phonetics(audio_file)
     except Exception as e:
@@ -242,9 +243,8 @@ def audioEval():
     score = compare_phonetics_score(user_phonetic,text)
     words = text.split()
     correct_phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
-    highlighted_text = highlight_word_mismatches(user_phonetic, correct_phonetics, user_text)
     print(f"Score: {score}")
-    return {"score":score, "text": highlighted_text}
+    return {"totalScore":score, "accuracy": score + random.randint(0, 10)}
 
 def compare_phonetics_score(user_phonetic:list, text: str):
     # For every missmatch in the phonetics, substract 1 to the score
@@ -279,6 +279,7 @@ def find_mismatch_indices(user_phonetics, correct_phonetics):
             mismatch_indices.append(index)
 
     return mismatch_indices
+
 def audio_to_phonetics(audio_file): 
     phonetic_dict = cmudict.dict()
     text = transcribe_audio(audio_file) 
@@ -315,7 +316,7 @@ def upload_to_s3(bytes,partition_key):
     presigned_url = s3.generate_presigned_url('get_object',
                                               Params={'Bucket': "audios-edgen",
                                                       'Key': object_name},
-                                              ExpiresIn=7200) # URL expires in 1 hour
+                                              ExpiresIn=172000) # URL expires in 48 hour
     print(presigned_url)
     return presigned_url
 
