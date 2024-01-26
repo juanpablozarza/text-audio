@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq,  pipeline
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, WhisperProcessor , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq,  pipeline
 from datasets import load_dataset
 import soundfile as sf
 from datasets import load_dataset
@@ -64,12 +64,14 @@ whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
 )
 whisper.to(device)
 
+
 processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
 whisper_pipe = pipeline(
     "automatic-speech-recognition",
     model=whisper,
     tokenizer=processor_whisper.tokenizer,
     feature_extractor=processor_whisper.feature_extractor,
+    generate_kwargs= {"task":"transcribe"},
     max_new_tokens=128,
     torch_dtype=torch_dtype,
     device=device,
@@ -214,7 +216,7 @@ def generateAudioFile(uid):
             combined_audio.append(resampled_segment)
         else:
             # Generate audio from text
-            speech = generate_audio(chunk, history_prompt="v2/es_speaker_9")
+            speech = generate_audio(chunk, history_prompt="v2/en_speaker_9")
             sampRate = SAMPLE_RATE
             combined_audio.append(speech)
 
@@ -226,9 +228,9 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
-    slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
+    # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
-    return upload_to_s3(slow_down_wav_bytes, uid)
+    return upload_to_s3(wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
@@ -244,7 +246,12 @@ def audioEval():
     words = text.split()
     correct_phonetics = [phonetic_dict[word.lower()][0] for word in words if word.lower() in phonetic_dict]
     print(f"Score: {score}")
-    return {"totalScore":score, "accuracy": score + random.randint(0, 10)}
+    random_number = random.randint(0, 10)
+    if score + random_number <= 100:
+      accuracy = score + random_number
+    else:
+      accuracy = score - random_number
+    return {"totalScore":score, "accuracy": accuracy}
 
 def compare_phonetics_score(user_phonetic:list, text: str):
     # For every missmatch in the phonetics, substract 1 to the score
@@ -300,8 +307,8 @@ def textClassifier(textData):
     # clean_chunks = fix_string_literals(pred)
     lang_chunks = {}
     # for chunk in clean_chunks:
-    output = text_classifier(textData)
-    lang_chunks[textData] = output[0]['label']  
+    # output = text_classifier(textData)
+    lang_chunks[textData] = "es" # Temporary fix
     return lang_chunks
 
 def upload_to_s3(bytes,partition_key):
