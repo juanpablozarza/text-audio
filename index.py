@@ -207,7 +207,7 @@ def generateAudioFile(uid):
         if not langs[chunk] in spanish_sim_langs:
             inputs = processor(text=chunk, return_tensors="pt")
             embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-            speaker_embeddings = torch.tensor(embeddings_dataset[1250]["xvector"]).unsqueeze(0)
+            speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
             speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
             sampRate = 16000
             # Convert tensor to numpy array
