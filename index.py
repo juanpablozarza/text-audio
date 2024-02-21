@@ -39,6 +39,7 @@ import nltk
 nltk.download('cmudict')
 from nltk.corpus import cmudict
 import Levenshtein as lev
+import pyrubberband as pyrb
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -47,25 +48,25 @@ cred = credentials.Certificate("serviceAccount.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 model_size = "large-v2"
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
 # Run on GPU with FP16
 # whisper = WhisperModel(model_size, device=device, compute_type="float16")
+# Load processor and model when server starts
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print('Running on', device)
+processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
+model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts", {"quantized": True})
+vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
+voice_preset = "v2/en_speaker_6"
 
-
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+# Load the whisper model
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
-
-whisper_model_id = "openai/whisper-medium"
+whisper_model_id = "distil-whisper/distil-large-v2"
 
 whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
-    whisper_model_id,  low_cpu_mem_usage=True, use_safetensors=True
+    whisper_model_id, torch_dtype= torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
 )
-whisper.to(device)
 
-# Quantize the model
-whisper_model = torch.quantization.quantize_dynamic(whisper, {torch.nn.Linear}, dtype=torch.qint8)
+whisper.to(device)
 
 processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
 whisper_pipe = pipeline(
@@ -94,13 +95,7 @@ preload_models()
 
 kinesis = boto3.client("kinesis", region_name="us-west-1")
 STREAM_NAME = "AudioEdGen"
-# Load processor and model when server starts
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print('Running on', device)
-processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
-model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
-vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
-voice_preset = "v2/en_speaker_6"
+
 
 
 
@@ -172,26 +167,15 @@ def fix_string_literals(s):
 
 
 def slowdownAudio(uid: str, audio_array:np.array):
-    # Check user's classId and slow down the audio accordingly
-    userRef = db.collection("users").document(uid)
-    userDoc = userRef.get().to_dict()
-    lastLesson = userDoc["lessons"][-1]
-    lessonRef = db.collection("lessons").document(lastLesson)
-    lessonDoc = lessonRef.get().to_dict()
-    classId = lessonDoc["classId"]
-    if classId.startswith("A"): 
-        playback_speed = 0.80
-    elif classId.startswith("B"):
-        playback_speed = 0.90
-    elif classId.startswith("C"):
-        playback_speed = 1.0
+    stretch_factor = 1.1
     # Load the audio file
     audio = AudioSegment.from_file(io.BytesIO(audio_array), format="wav")
     # Slow down the audio to half its speed
-    slowed_audio = ae.speed_down(audio, playback_speed)
+    processed_audio = pyrb.time_stretch(audio, 16000, stretch_factor)
+    # Save the processed audio
     # Save the slowed audio
     slowed_audio_bytes = io.BytesIO()
-    slowed_audio.export(slowed_audio_bytes, format="wav")
+    processed_audio.export(slowed_audio_bytes, format="wav")
     slowed_audio_bytes = slowed_audio_bytes.getvalue()
     return slowed_audio_bytes
      
@@ -230,9 +214,9 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
-    # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
+    slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
-    return upload_to_s3(wav_bytes, uid)
+    return upload_to_s3(slow_down_wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
