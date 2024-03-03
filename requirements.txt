@@ -21,3 +21,5 @@ firebase-admin
 audio-effects
 nltk
 python-Levenshtein
+pyrubberband
+fairseq

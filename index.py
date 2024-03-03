@@ -40,6 +40,10 @@ nltk.download('cmudict')
 from nltk.corpus import cmudict
 import Levenshtein as lev
 import pyrubberband as pyrb
+from fairseq.checkpoint_utils import load_model_ensemble_and_task_from_hf_hub
+from fairseq.models.text_to_speech.hub_interface import TTSHubInterface
+
+
 
 mysp= __import__("my-voice-analysis")
 # tts = CS_API()
@@ -53,14 +57,22 @@ model_size = "large-v2"
 # Load processor and model when server starts
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
+models_TTS, cfg, task_TTS = load_model_ensemble_and_task_from_hf_hub(
+    "facebook/fastspeech2-en-ljspeech",
+    arg_overrides={"vocoder": "hifigan", "fp16": True, "device": device},
+)
+model_TTS = models_TTS[0]
+TTSHubInterface.update_cfg_with_data_cfg(cfg, task_TTS.data_cfg)
+generator = task_TTS.build_generator(model_TTS, cfg)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
-model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts", {"quantized": True})
+model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 voice_preset = "v2/en_speaker_6"
 
 # Load the whisper model
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-whisper_model_id = "distil-whisper/distil-large-v2"
+whisper_model_id = "Juanpablozarza292/whisper-destil-spa-eng"
+whisper_tokenizer_id = "distil-whisper/distil-large-v2"
 
 whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
     whisper_model_id, torch_dtype= torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
@@ -68,7 +80,7 @@ whisper = AutoModelForSpeechSeq2Seq.from_pretrained(
 
 whisper.to(device)
 
-processor_whisper = AutoProcessor.from_pretrained(whisper_model_id)
+processor_whisper = AutoProcessor.from_pretrained(whisper_tokenizer_id)
 whisper_pipe = pipeline(
     "automatic-speech-recognition",
     model=whisper,
@@ -171,13 +183,13 @@ def slowdownAudio(uid: str, audio_array:np.array):
     # Load the audio file
     audio = AudioSegment.from_file(io.BytesIO(audio_array), format="wav")
     # Slow down the audio to half its speed
-    processed_audio = pyrb.time_stretch(audio, 16000, stretch_factor)
+    processed_audio = pyrb.time_stretch(audio_array, 16000, stretch_factor)
     # Save the processed audio
     # Save the slowed audio
     slowed_audio_bytes = io.BytesIO()
     processed_audio.export(slowed_audio_bytes, format="wav")
     slowed_audio_bytes = slowed_audio_bytes.getvalue()
-    return slowed_audio_bytes
+    return processed_audio
      
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
@@ -191,11 +203,13 @@ def generateAudioFile(uid):
         print(f"Chunk: {chunk}")
         spanish_sim_langs = ["it","fr", "pt","ro", "es"] 
         if not langs[chunk] in spanish_sim_langs:
-            inputs = processor(text=chunk, return_tensors="pt")
-            embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-            speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
-            speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-            sampRate = 16000
+            # inputs = processor(text=chunk, return_tensors="pt")
+            # embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+            # speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
+            # speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+            # sampRate = 16000
+            sample = TTSHubInterface.get_model_input(task_TTS, chunk)
+            speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS, generator, sample)
             # Convert tensor to numpy array
             speech = speech.numpy()
             resampled_segment =librosa.resample(speech, orig_sr=sampRate, target_sr=SAMPLE_RATE)
@@ -214,9 +228,9 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
-    slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
+    # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
-    return upload_to_s3(slow_down_wav_bytes, uid)
+    return upload_to_s3(wav_bytes, uid)
 
 @app.route("/audioEval", methods=['POST'])
 def audioEval():
@@ -309,7 +323,7 @@ def upload_to_s3(bytes,partition_key):
     presigned_url = s3.generate_presigned_url('get_object',
                                               Params={'Bucket': "audios-edgen",
                                                       'Key': object_name},
-                                              ExpiresIn=172000) # URL expires in 48 hour
+                                              ExpiresIn=1720000) # URL expires in 48 hour
     print(presigned_url)
     return presigned_url
 
