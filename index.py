@@ -61,9 +61,9 @@ models_TTS, cfg, task_TTS = load_model_ensemble_and_task_from_hf_hub(
     "facebook/fastspeech2-en-ljspeech",
     arg_overrides={"vocoder": "hifigan", "fp16": False, "device": "cpu"},
 )
-model_TTS = models_TTS[0]
+model_TTS = models_TTS[0].to(device)
 TTSHubInterface.update_cfg_with_data_cfg(cfg, task_TTS.data_cfg)
-generator = task_TTS.build_generator([model_TTS], cfg)
+generator = task_TTS.build_generator([model_TTS], cfg).to(device)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
@@ -209,7 +209,7 @@ def generateAudioFile(uid):
             # speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
             # sampRate = 16000
             sample = TTSHubInterface.get_model_input(task_TTS, chunk)
-            speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS, generator, sample)
+            speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS,  generator, sample)
             # Convert tensor to numpy array
             speech = speech.numpy()
             resampled_segment =librosa.resample(speech, orig_sr=sampRate, target_sr=SAMPLE_RATE)
