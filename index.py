@@ -128,16 +128,16 @@ def transcribe_audio(file):
     ext = os.path.splitext(file.filename)[1]
     print(ext)
     filename = f"{uuid.uuid4()}{ext}"
-    file_path = os.path.join("./uploads", secure_filename(filename))
+    file_path = os.path.join("./uploads", secure_filename(filename) )
     # Save the original file
     file.save(file_path)
     # Check if the file is in CAF format and convert to WAV if necessary
     if ext.lower() == '.caf':
-        audio = AudioSegment.from_file(file_path, format='caf')
+        audio = AudioSegment.from_file(file_path+".caf", format='caf')
         wav_path = file_path.replace('.caf', '.wav')
         audio.export(wav_path, format='wav')
         # Update file_path to the new WAV file
-        file_path = wav_path
+        file_path = wav_path+ ".wav"
     # Process the file with Whisper
     try:
       result = whisper_pipe(file_path)
