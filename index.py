@@ -208,7 +208,8 @@ def generateAudioFile(uid):
             # speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
             # speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
             # sampRate = 16000
-            sample = TTSHubInterface.get_model_input(task_TTS, chunk).to(device)
+            sample = TTSHubInterface.get_model_input(task_TTS, chunk)
+            print(sample)
             speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS,  generator, sample)
             # Convert tensor to numpy array
             speech = speech.numpy()
