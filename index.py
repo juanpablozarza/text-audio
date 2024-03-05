@@ -124,7 +124,7 @@ lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
 def transcribe_audio(file):
     # Generate a unique filename with the original file extension
-    print(file.filename)
+    print(file.filename.split('.'))
     ext = os.path.splitext(file.filename)[1]
     print(ext)
     filename = f"{uuid.uuid4()}{ext}"
@@ -139,7 +139,16 @@ def transcribe_audio(file):
         # Update file_path to the new WAV file
         file_path = wav_path
     # Process the file with Whisper
-    result = whisper_pipe(file_path)
+    try:
+      result = whisper_pipe(file_path)
+    except Exception as e:
+        if ext.lower() == '.caf':
+          audio = AudioSegment.from_file(file_path, format='caf')
+          wav_path = file_path.replace('.caf', '.wav')
+          audio.export(wav_path, format='wav')
+          # Update file_path to the new WAV file
+          file_path = wav_path
+          result = whisper_pipe(file_path)
     print(result['text'])
     # Delete the file(s) after processing
     os.remove(file_path)
