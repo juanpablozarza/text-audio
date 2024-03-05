@@ -133,6 +133,7 @@ def transcribe_audio(file):
     file.save(file_path)
     # Check if the file is in CAF format and convert to WAV if necessary
     if ext.lower() == '.caf':
+        print('Converting CAF to WAV', file_path)
         audio = AudioSegment.from_file(file_path, format='caf')
         wav_path = file_path.replace('.caf', '.wav')
         audio.export(wav_path, format='wav')
