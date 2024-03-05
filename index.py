@@ -142,7 +142,7 @@ def transcribe_audio(file):
     try:
       result = whisper_pipe(file_path)
     except Exception as e:
-        if ext.lower() == '.caf':
+       
           audio = AudioSegment.from_file(file_path, format='caf')
           wav_path = file_path.replace('.caf', '.wav')
           audio.export(wav_path, format='wav')
