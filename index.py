@@ -124,6 +124,7 @@ lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
 
 def transcribe_audio(file):
     # Generate a unique filename with the original file extension
+    print(file.filename)
     ext = os.path.splitext(file.filename)[1]
     filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join("./uploads", secure_filename(filename))
