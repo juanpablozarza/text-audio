@@ -126,6 +126,7 @@ def transcribe_audio(file):
     # Generate a unique filename with the original file extension
     print(file.filename)
     ext = os.path.splitext(file.filename)[1]
+    print(ext)
     filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join("./uploads", secure_filename(filename))
     # Save the original file
