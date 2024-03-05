@@ -63,7 +63,6 @@ models_TTS, cfg, task_TTS = load_model_ensemble_and_task_from_hf_hub(
 )
 model_TTS = models_TTS[0].to(device)
 TTSHubInterface.update_cfg_with_data_cfg(cfg, task_TTS.data_cfg)
-TTSHubInterface.to(device)
 generator = task_TTS.build_generator([model_TTS], cfg)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
@@ -209,7 +208,7 @@ def generateAudioFile(uid):
             # speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
             # speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
             # sampRate = 16000
-            sample = TTSHubInterface.get_model_input(task_TTS, chunk)
+            sample = TTSHubInterface.get_model_input(task_TTS, chunk).to(device)
             speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS,  generator, sample)
             # Convert tensor to numpy array
             speech = speech.numpy()
