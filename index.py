@@ -59,11 +59,11 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print('Running on', device)
 models_TTS, cfg, task_TTS = load_model_ensemble_and_task_from_hf_hub(
     "facebook/fastspeech2-en-ljspeech",
-    arg_overrides={"vocoder": "hifigan", "fp16": False, "device": "cpu"},
+    arg_overrides={"vocoder": "hifigan", "fp16": True, "device": device},
 )
 model_TTS = models_TTS[0].to(device)
 TTSHubInterface.update_cfg_with_data_cfg(cfg, task_TTS.data_cfg)
-generator = task_TTS.build_generator([model_TTS], cfg).to(device)
+generator = task_TTS.build_generator([model_TTS], cfg)
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
 model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
 vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
