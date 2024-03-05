@@ -133,7 +133,7 @@ def transcribe_audio(file):
     file.save(file_path)
     # Check if the file is in CAF format and convert to WAV if necessary
     if ext.lower() == '.caf':
-        audio = AudioSegment.from_file(file_path+".caf", format='caf')
+        audio = AudioSegment.from_file(file_path, format='caf')
         wav_path = file_path.replace('.caf', '.wav')
         audio.export(wav_path, format='wav')
         # Update file_path to the new WAV file
@@ -142,13 +142,9 @@ def transcribe_audio(file):
     try:
       result = whisper_pipe(file_path)
     except Exception as e:
-       
-          audio = AudioSegment.from_file(file_path, format='caf')
-          wav_path = file_path.replace('.caf', '.wav')
-          audio.export(wav_path, format='wav')
-          # Update file_path to the new WAV file
-          file_path = wav_path
-          result = whisper_pipe(file_path)
+        print(e)
+        return jsonify({"error": "Audio file not supported"})
+    
     print(result['text'])
     # Delete the file(s) after processing
     os.remove(file_path)
