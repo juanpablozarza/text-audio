@@ -222,7 +222,7 @@ def generateAudioFile(uid):
 
             speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS,  generator, sample)
             # Convert tensor to numpy array
-            speech = speech.numpy()
+            print(speech.shape)
             resampled_segment =librosa.resample(speech, orig_sr=sampRate, target_sr=SAMPLE_RATE)
             combined_audio.append(resampled_segment)
         else:
