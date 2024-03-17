@@ -251,12 +251,18 @@ def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_p
             os.remove(audio_temp.name)
             os.remove(transcript_temp.name)
 
+def checkSelectedClass(uid):
+    doc_ref = db.collection("users").document(uid) 
+    doc = doc_ref.get()
+    if doc.exists:
+        return doc.to_dict()["selectedClass"]
             
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
     print('Generating audio file...')
     reqData = request.json
     textData = reqData.get("textData")
+    selected_class = checkSelectedClass(uid)
     langs = textClassifier(textData)
     print(f"Langs: {langs}")
     combined_audio = [] 
@@ -289,7 +295,7 @@ def generateAudioFile(uid):
     wav_bytes = byte_io.read()
     byte_io.seek(0)
     # Create a VTT file from the audio and its transcript
-    create_vtt_from_audio_bytes(wav_bytes, SAMPLE_RATE, textData, f"results/{uid}.vtt")
+    create_vtt_from_audio_bytes(wav_bytes, SAMPLE_RATE, textData, f"results/{uid}.vtt",selected_class)
     # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
     return upload_to_s3(wav_bytes, uid)
