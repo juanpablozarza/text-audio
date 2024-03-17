@@ -64,10 +64,6 @@ models_TTS, cfg, task_TTS = load_model_ensemble_and_task_from_hf_hub(
 model_TTS = models_TTS[0].to(device)
 TTSHubInterface.update_cfg_with_data_cfg(cfg, task_TTS.data_cfg)
 generator = task_TTS.build_generator([model_TTS], cfg)
-processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
-model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
-vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
-voice_preset = "v2/en_speaker_6"
 
 # Load the whisper model
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -198,7 +194,64 @@ def slowdownAudio(uid: str, audio_array:np.array):
     processed_audio.export(slowed_audio_bytes, format="wav")
     slowed_audio_bytes = slowed_audio_bytes.getvalue()
     return processed_audio
-     
+  
+  # Function to create VTT file from transcribed text and audio file 
+
+def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_path, lessonRef):
+    """
+    Create a VTT file from audio bytes and its transcript using Aeneas.
+
+    :param wav_bytes: The audio data as bytes.
+    :param sample_rate: The sample rate of the audio data.
+    :param transcript: The transcript text.
+    :param output_vtt_path: Path where the output VTT file will be saved.
+    """
+    # Create temporary files for the audio and transcript
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as audio_temp, \
+         tempfile.NamedTemporaryFile(delete=False, suffix='.txt') as transcript_temp:
+        
+        # Write the audio bytes to the temporary audio file
+        write(audio_temp.name, sample_rate, wav_bytes)
+        
+        # Write the transcript to the temporary transcript file
+        transcript_temp.write(transcript.encode())
+        transcript_temp.flush()  # Ensure all data is written to disk
+
+        # Command template for Aeneas
+        command_template = [
+            'python', '-m', 'aeneas.tools.execute_task',
+            audio_temp.name,
+            transcript_temp.name,
+            "task_language=eng|is_text_type=plain|os_task_file_format=vtt",
+            output_vtt_path
+        ]
+
+        # Execute the Aeneas command
+        try:
+            subprocess.run(command_template, check=True)
+            print("VTT file created successfully:", output_vtt_path)
+            # Upload file to s3 and link to firebase firestore in a transcript property
+            s3 = boto3.client('s3')
+            s3.upload_file(output_vtt_path, "audios-edgen", output_vtt_path)
+            # Generate Pre-signed URL
+            presigned_url = s3.generate_presigned_url('get_object',
+                                                Params={'Bucket': "audios-edgen",
+                                                        'Key': output_vtt_path},
+                                                ExpiresIn=17200000) # URL expires in 48 hour
+            print(presigned_url)
+            if lessonRef:
+                doc_ref = db.collection("lessons").document(lessonRef)
+                doc_ref.update({
+                    "transcript": firestore.ArrayUnion([presigned_url])
+                })
+        except subprocess.CalledProcessError as e:
+            print("An error occurred while creating the VTT file:", str(e))
+        finally:
+            # Clean up temporary files
+            os.remove(audio_temp.name)
+            os.remove(transcript_temp.name)
+
+            
 @app.route("/generateAudioFile/<uid>", methods=["POST"])
 def generateAudioFile(uid):
     print('Generating audio file...')
@@ -211,11 +264,7 @@ def generateAudioFile(uid):
         print(f"Chunk: {chunk}")
         spanish_sim_langs = ["it","fr", "pt","ro", "es"] 
         if not langs[chunk] in spanish_sim_langs:
-            # inputs = processor(text=chunk, return_tensors="pt")
-            # embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-            # speaker_embeddings = torch.tensor(embeddings_dataset[3250]["xvector"]).unsqueeze(0)
-            # speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
-            # sampRate = 16000
+            # Generate audio from text
             sample = TTSHubInterface.get_model_input(task_TTS, chunk)
             sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to("cuda")
             print(sample['net_input']['src_tokens'])
@@ -239,6 +288,8 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
+    # Create a VTT file from the audio and its transcript
+    create_vtt_from_audio_bytes(wav_bytes, SAMPLE_RATE, textData, f"results/{uid}.vtt")
     # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
     return upload_to_s3(wav_bytes, uid)
