@@ -224,7 +224,7 @@ def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_p
 
         # Command template for Aeneas
         command_template = [
-            'python', '-m', 'aeneas.tools.execute_task',
+            'python3', '-m', 'aeneas.tools.execute_task',
             audio_temp.name,
             transcript_temp.name,
             "task_language=eng|is_text_type=plain|os_task_file_format=vtt",
