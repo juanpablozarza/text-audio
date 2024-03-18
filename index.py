@@ -273,8 +273,6 @@ def generateAudioFile(uid):
             # Generate audio from text
             sample = TTSHubInterface.get_model_input(task_TTS, chunk)
             sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].to("cuda")
-            print(sample['net_input']['src_tokens'])
-
             speech, sampRate = TTSHubInterface.get_prediction(task_TTS, model_TTS,  generator, sample)
             # Convert tensor to numpy array
             speech = speech.cpu().numpy()
@@ -289,8 +287,7 @@ def generateAudioFile(uid):
     # Export combined audio
     print(f"Sample rate: {SAMPLE_RATE}")
     resampled_speech = np.concatenate(combined_audio)
-    bytes_wav = bytes()
-    byte_io = io.BytesIO(bytes_wav)
+    byte_io = io.BytesIO()
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
