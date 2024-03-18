@@ -42,6 +42,7 @@ import Levenshtein as lev
 import pyrubberband as pyrb
 from fairseq.checkpoint_utils import load_model_ensemble_and_task_from_hf_hub
 from fairseq.models.text_to_speech.hub_interface import TTSHubInterface
+import numpy as np
 
 
 
@@ -196,6 +197,7 @@ def slowdownAudio(uid: str, audio_array:np.array):
     return processed_audio
   
   # Function to create VTT file from transcribed text and audio file 
+# ...
 
 def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_path, lessonRef):
     """
@@ -206,12 +208,15 @@ def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_p
     :param transcript: The transcript text.
     :param output_vtt_path: Path where the output VTT file will be saved.
     """
+    # Convert the audio bytes to a NumPy array
+    audio_array = np.frombuffer(wav_bytes, dtype=np.int16)
+
     # Create temporary files for the audio and transcript
     with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as audio_temp, \
          tempfile.NamedTemporaryFile(delete=False, suffix='.txt') as transcript_temp:
         
-        # Write the audio bytes to the temporary audio file
-        write(audio_temp.name, sample_rate, wav_bytes)
+        # Write the audio array to the temporary audio file
+        write(audio_temp.name, sample_rate, audio_array)
         
         # Write the transcript to the temporary transcript file
         transcript_temp.write(transcript.encode())
@@ -250,7 +255,6 @@ def create_vtt_from_audio_bytes(wav_bytes, sample_rate, transcript, output_vtt_p
             # Clean up temporary files
             os.remove(audio_temp.name)
             os.remove(transcript_temp.name)
-
 def checkSelectedClass(uid):
     doc_ref = db.collection("users").document(uid) 
     doc = doc_ref.get()
