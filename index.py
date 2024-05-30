@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 import numpy as np
 import boto3
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, WhisperProcessor , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq
+from transformers import AutoTokenizer,pipeline, AutoModelForSequenceClassification, WhisperProcessor , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq
 import soundfile as sf
 import io
 from pydub import AudioSegment
@@ -172,7 +172,7 @@ def transcribe_audio(file):
         # Update file_path to the new WAV file
         file_path = wav_path
     # Pre process with fast fourier transform for a human voice filter.
-    # output_path = file_path.replace('.wav', '_filtered.wav')
+    output_path = file_path.replace('.wav', '_filtered.wav')
     # Process the file with Whisper
     try:
       result = whisper_pipe(file_path)
