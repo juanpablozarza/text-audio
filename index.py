@@ -1,14 +1,11 @@
 import random
 import uuid
 from flask import Flask, request, jsonify
-
 import numpy as np
 import boto3
 import torch
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan, VitsModel, AutoTokenizer, AutoModelForSequenceClassification, WhisperProcessor , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq,  pipeline
-from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, WhisperProcessor , AutoProcessor, TextClassificationPipeline, AutoModelForSpeechSeq2Seq
 import soundfile as sf
-from datasets import load_dataset
 import io
 from pydub import AudioSegment
 import librosa
@@ -118,6 +115,44 @@ lang_sep_model = pipeline.model
 lang_sep_tokenizer = pipeline.tokenizer
 # Load the Lora model
 lang_sep_model = PeftModel.from_pretrained(lang_sep_model, peft_model_id)
+import numpy as np
+import librosa
+import soundfile as sf
+from scipy.fft import fft, ifft
+
+def load_and_resample(audio_path, target_sr=16000):
+    # Load and resample the audio file to the target sample rate
+    audio, sr = librosa.load(audio_path, sr=target_sr)
+    return audio, sr
+
+def apply_fft_filter(audio, sr, low_freq=85, high_freq=1000):
+    # Apply FFT to the audio
+    transformed = fft(audio)
+
+    # Generate frequencies associated with FFT coefficients
+    fourier_freqs = np.fft.fftfreq(len(audio), 1 / sr)
+
+    # Zero out frequencies outside the voice range
+    transformed[(fourier_freqs < low_freq) | (fourier_freqs > high_freq)] = 0
+
+    # Apply inverse FFT to get the filtered audio
+    filtered_audio = ifft(transformed)
+    filtered_audio = np.real(filtered_audio).astype(np.float32)  # Convert back to float32 for librosa compatibility
+    return filtered_audio
+
+def save_audio(audio, path, sr):
+    # Save the processed audio to a file
+    sf.write(path, audio, sr)
+
+def process_audio_file(input_path, output_path):
+    # Load and resample the audio
+    audio, sr = load_and_resample(input_path)
+
+    # Apply FFT to remove background noise
+    filtered_audio = apply_fft_filter(audio, sr)
+
+    # Save the filtered and resampled audio
+    save_audio(filtered_audio, output_path, sr)
 
 def transcribe_audio(file):
     # Generate a unique filename with the original file extension
@@ -136,6 +171,8 @@ def transcribe_audio(file):
         audio.export(wav_path, format='wav')
         # Update file_path to the new WAV file
         file_path = wav_path
+    # Pre process with fast fourier transform for a human voice filter.
+    # output_path = file_path.replace('.wav', '_filtered.wav')
     # Process the file with Whisper
     try:
       result = whisper_pipe(file_path)
@@ -146,6 +183,7 @@ def transcribe_audio(file):
     print(result['text'])
     # Delete the file(s) after processing
     os.remove(file_path)
+
     # if ext.lower() == '.caf':
     #     os.remove(wav_path)
     return result['text']
@@ -295,8 +333,10 @@ def generateAudioFile(uid):
     write(byte_io, SAMPLE_RATE, resampled_speech)
     wav_bytes = byte_io.read()
     byte_io.seek(0)
-    # Create a VTT file from the audio and its transcript
-    create_vtt_from_audio_bytes(wav_bytes, SAMPLE_RATE, textData, f"results/{uid}.vtt",selected_class)
+    if "transcript" in reqData:
+        transcript = reqData.get("transcript")
+        # Create a VTT file from the audio and its transcript
+        create_vtt_from_audio_bytes(wav_bytes, SAMPLE_RATE, textData, f"results/{uid}.vtt",selected_class)
     # slow_down_wav_bytes = slowdownAudio(uid, wav_bytes)
     # Slow down the audio if necessary
     return upload_to_s3(wav_bytes, uid)
@@ -377,7 +417,7 @@ def textClassifier(textData):
     lang_chunks = {}
     # for chunk in clean_chunks:
     # output = text_classifier(textData)
-    lang_chunks[textData] = "en" # Temporary fix
+    lang_chunks[textData] = "es" # Temporary fix
     return lang_chunks
 
 def upload_to_s3(bytes,partition_key):

@@ -1,5 +1,4 @@
 Flask
-numpy
 boto3
 torch>=2.1.1
 transformers>=4.33.3
@@ -23,3 +22,5 @@ nltk
 python-Levenshtein
 pyrubberband
 fairseq
+numpy
+aeneas==1.7.3.0
